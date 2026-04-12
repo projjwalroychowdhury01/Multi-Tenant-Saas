@@ -8,6 +8,7 @@ POST /auth/logout            — blacklist the refresh token
 POST /auth/invite            — ADMIN+ sends an invitation link
 POST /auth/accept-invite/    — invited user joins the org
 GET  /auth/me                — current user profile + org context
+GET  /auth/me/permissions    — list permission scopes for current role
 """
 
 from rest_framework import status
@@ -120,6 +121,45 @@ def me(request):
     """Return the currently authenticated user's profile and org context."""
     serializer = UserSerializer(request.user, context={"request": request})
     return Response(serializer.data)
+
+
+# ── Me Permissions ────────────────────────────────────────────────────────────
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def me_permissions(request):
+    """
+    GET /auth/me/permissions
+
+    Returns the list of permission scope strings granted to the current user
+    based on their role in the active organisation.
+
+    Response shape::
+
+        {
+            "org_id": "<uuid>",
+            "role": "ADMIN",
+            "permissions": ["users:read", "users:invite", ...]
+        }
+
+    If the user has no org context (e.g., no membership yet), the permissions
+    list will be empty.
+    """
+    from apps.rbac.permissions import _get_request_role
+    from apps.rbac.registry import get_role_permissions
+
+    org = getattr(request, "org", None)
+    role = _get_request_role(request)
+    permissions = sorted(get_role_permissions(role)) if role else []
+
+    return Response(
+        {
+            "org_id": str(org.id) if org else None,
+            "role": role,
+            "permissions": permissions,
+        }
+    )
 
 
 # ── Invite ────────────────────────────────────────────────────────────────────

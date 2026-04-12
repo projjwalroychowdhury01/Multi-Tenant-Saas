@@ -6,6 +6,7 @@ POST /auth/token             — login → JWT
 POST /auth/token/refresh     — refresh access token
 POST /auth/logout            — blacklist refresh token
 GET  /auth/me                — current user profile
+GET  /auth/me/permissions    — permission scopes for current role
 POST /auth/invite            — send org invitation
 POST /auth/accept-invite/    — accept invitation and join org
 """
@@ -19,6 +20,7 @@ from apps.users.views import (
     invite,
     logout,
     me,
+    me_permissions,
     register,
 )
 
@@ -28,6 +30,7 @@ urlpatterns = [
     path("token/refresh", TokenRefreshView.as_view(), name="auth-token-refresh"),
     path("logout", logout, name="auth-logout"),
     path("me", me, name="auth-me"),
+    path("me/permissions", me_permissions, name="auth-me-permissions"),
     path("invite", invite, name="auth-invite"),
     path("accept-invite/", accept_invite, name="auth-accept-invite"),
 ]
