@@ -1,15 +1,18 @@
 """
-Cross-tenant isolation test suite — Phase 1 placeholder.
+Cross-tenant isolation test suite — Phase 2.
 
-These tests verify that Org A's authenticated tokens cannot access
-Org B's data through any API endpoint.
+These tests verify that Org A's authenticated tokens cannot read, mutate,
+or delete Org B's members through any API endpoint.
 
-Phase 1 has no tenant-scoped resource endpoints yet (those arrive in Phase 2+).
-This file establishes the structure and will be populated endpoint-by-endpoint
-as each Phase 2 resource is built.
+RULE: Every test in this file MUST assert HTTP 404 (not 403) to prevent
+      confirming resource existence to a foreign tenant.  If a 403 is ever
+      returned it means the resource was found but access was denied — which
+      itself leaks information.
 
-RULE: Every test in this file MUST assert HTTP 404 (not 403)
-      to prevent confirming resource existence to a foreign tenant.
+Phase 2 endpoints under test:
+  GET    /orgs/<org_b_id>/members/
+  PATCH  /orgs/<org_b_id>/members/<uid>/role/
+  DELETE /orgs/<org_b_id>/members/<uid>/
 """
 
 import pytest
@@ -23,24 +26,34 @@ from apps.tenants.models import RoleEnum
 @pytest.mark.django_db
 class TestCrossTenantIsolation:
     """
-    Stub isolation tests.
-    Will grow as resource endpoints are added in Phases 2–5.
+    Cross-tenant isolation tests.
+    Every assertion here is a hard security guarantee.
     """
 
     def setup_two_orgs(self):
-        """Helper: creates two completely independent orgs each with an admin."""
+        """
+        Create two completely independent orgs each with an OWNER.
+        Returns (org_a, org_b, user_a, user_b, client_a, client_b).
+        """
         org_a = OrganizationFactory(name="Org Alpha")
         org_b = OrganizationFactory(name="Org Beta")
 
         user_a = UserFactory(password="TestPass123!")
         user_b = UserFactory(password="TestPass123!")
 
-        MembershipFactory(organization=org_a, user=user_a, role=RoleEnum.ADMIN)
-        MembershipFactory(organization=org_b, user=user_b, role=RoleEnum.ADMIN)
+        MembershipFactory(organization=org_a, user=user_a, role=RoleEnum.OWNER)
+        MembershipFactory(organization=org_b, user=user_b, role=RoleEnum.OWNER)
 
-        return org_a, org_b, user_a, user_b
+        client_a = self._make_auth_client(user_a.email, "TestPass123!")
+        client_b = self._make_auth_client(user_b.email, "TestPass123!")
 
-    def get_access_token(self, email, password) -> str:
+        # Create an extra member in Org B that Client A will try to target
+        extra_b = UserFactory(password="TestPass123!")
+        MembershipFactory(organization=org_b, user=extra_b, role=RoleEnum.MEMBER)
+
+        return org_a, org_b, user_a, user_b, client_a, client_b, extra_b
+
+    def _make_auth_client(self, email: str, password: str) -> APIClient:
         client = APIClient()
         res = client.post(
             "/auth/token",
@@ -48,14 +61,115 @@ class TestCrossTenantIsolation:
             format="json",
         )
         assert res.status_code == 200, f"Login failed for {email}: {res.data}"
-        return res.data["access"]
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {res.data['access']}")
+        return client
 
-    def test_stub_placeholder(self, db):
-        """
-        Isolation suite is wired up and ready.
-        Phase 2 will populate concrete cross-tenant resource tests here.
-        """
-        org_a, org_b, user_a, user_b = self.setup_two_orgs()
-        # Sanity check: both orgs are distinct
+    # ── Sanity baseline ──────────────────────────────────────────────────────
+
+    def test_setup_sanity(self):
+        """Orgs and users are distinct — baseline sanity check."""
+        org_a, org_b, user_a, user_b, *_ = self.setup_two_orgs()
         assert org_a.id != org_b.id
         assert user_a.id != user_b.id
+
+    # ── List Members ─────────────────────────────────────────────────────────
+
+    def test_list_members_foreign_org_returns_404(self):
+        """
+        Client A must not be able to list Org B's members.
+        Expected: HTTP 404 (not 403 — the org's existence is opaque).
+        """
+        org_a, org_b, _, _, client_a, *_ = self.setup_two_orgs()
+        res = client_a.get(f"/orgs/{org_b.id}/members/")
+        assert res.status_code == status.HTTP_404_NOT_FOUND, (
+            f"Expected 404 but got {res.status_code}: {res.data}"
+        )
+
+    def test_list_members_own_org_succeeds(self):
+        """Control: Client A must still be able to list Org A's members."""
+        org_a, _, _, _, client_a, *_ = self.setup_two_orgs()
+        res = client_a.get(f"/orgs/{org_a.id}/members/")
+        assert res.status_code == status.HTTP_200_OK
+
+    # ── Change Role ──────────────────────────────────────────────────────────
+
+    def test_change_role_foreign_member_returns_404(self):
+        """
+        Client A must not be able to change the role of Org B's member.
+        Expected: HTTP 404 at the org resolution step.
+        """
+        org_a, org_b, _, _, client_a, _, extra_b = self.setup_two_orgs()
+        res = client_a.patch(
+            f"/orgs/{org_b.id}/members/{extra_b.id}/role/",
+            {"role": RoleEnum.VIEWER},
+            format="json",
+        )
+        assert res.status_code == status.HTTP_404_NOT_FOUND, (
+            f"Expected 404 but got {res.status_code}: {res.data}"
+        )
+
+    def test_change_role_using_valid_org_but_foreign_user_returns_404(self):
+        """
+        Client A using their own org_id but targeting a user from Org B
+        should return 404 (member not found in their org).
+        """
+        org_a, _, _, _, client_a, _, extra_b = self.setup_two_orgs()
+        res = client_a.patch(
+            f"/orgs/{org_a.id}/members/{extra_b.id}/role/",
+            {"role": RoleEnum.VIEWER},
+            format="json",
+        )
+        # extra_b is NOT a member of org_a → get_object_or_404 returns 404
+        assert res.status_code == status.HTTP_404_NOT_FOUND, (
+            f"Expected 404 but got {res.status_code}: {res.data}"
+        )
+
+    # ── Remove Member ────────────────────────────────────────────────────────
+
+    def test_remove_foreign_member_returns_404(self):
+        """
+        Client A must not be able to DELETE Org B's member.
+        Expected: HTTP 404 at the org resolution step.
+        """
+        org_a, org_b, _, _, client_a, _, extra_b = self.setup_two_orgs()
+        res = client_a.delete(f"/orgs/{org_b.id}/members/{extra_b.id}/")
+        assert res.status_code == status.HTTP_404_NOT_FOUND, (
+            f"Expected 404 but got {res.status_code}: {res.data}"
+        )
+
+    def test_remove_using_valid_org_but_foreign_user_returns_404(self):
+        """
+        Client A using their own org_id but targeting a user from Org B
+        should return 404.
+        """
+        org_a, _, _, _, client_a, _, extra_b = self.setup_two_orgs()
+        res = client_a.delete(f"/orgs/{org_a.id}/members/{extra_b.id}/")
+        assert res.status_code == status.HTTP_404_NOT_FOUND, (
+            f"Expected 404 but got {res.status_code}: {res.data}"
+        )
+
+    # ── Unauthenticated ──────────────────────────────────────────────────────
+
+    def test_unauthenticated_list_returns_401(self):
+        """Unauthenticated requests must be rejected with 401."""
+        org_a, _, _, _, *_ = self.setup_two_orgs()
+        client = APIClient()  # no credentials
+        res = client.get(f"/orgs/{org_a.id}/members/")
+        assert res.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_unauthenticated_patch_returns_401(self):
+        org_a, _, _, _, _, _, extra_b = self.setup_two_orgs()
+        client = APIClient()
+        res = client.patch(
+            f"/orgs/{org_a.id}/members/{extra_b.id}/role/",
+            {"role": RoleEnum.VIEWER},
+            format="json",
+        )
+        assert res.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_unauthenticated_delete_returns_401(self):
+        org_a, _, _, _, _, _, extra_b = self.setup_two_orgs()
+        client = APIClient()
+        res = client.delete(f"/orgs/{org_a.id}/members/{extra_b.id}/")
+        assert res.status_code == status.HTTP_401_UNAUTHORIZED
+

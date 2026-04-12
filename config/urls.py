@@ -8,6 +8,8 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     # Auth routes
     path("auth/", include("apps.users.urls")),
+    # Organisation / member-management
+    path("orgs/", include("apps.tenants.urls")),
     # Core
     path("", include("apps.core.urls")),
     # OpenAPI schema
