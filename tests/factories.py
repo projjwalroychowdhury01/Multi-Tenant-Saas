@@ -47,3 +47,56 @@ class MembershipFactory(DjangoModelFactory):
     organization = factory.SubFactory(OrganizationFactory)
     user = factory.SubFactory(UserFactory)
     role = RoleEnum.MEMBER
+
+
+class ApiKeyFactory(DjangoModelFactory):
+    """
+    Creates a real ApiKey with a properly hashed secret.
+
+    Usage:
+        key, secret = ApiKeyFactory.create_with_secret(org=org, created_by=user)
+    """
+
+    class Meta:
+        model = "api_keys.ApiKey"
+
+    organization = factory.SubFactory(OrganizationFactory)
+    created_by = factory.SubFactory(UserFactory)
+    name = factory.Sequence(lambda n: f"Test Key {n}")
+    env = "live"
+    scopes = factory.LazyFunction(list)
+    is_active = True
+
+    # prefix and hashed_key are set via the _create override below
+    prefix = factory.Sequence(lambda n: f"sk_live_{n:04d}")
+    hashed_key = "placeholder"  # overridden in _create
+
+    @classmethod
+    def _create(cls, model_class, *args, **kwargs):
+        from apps.api_keys.models import ApiKey
+
+        # Generate a real secret and derive prefix + hash
+        env = kwargs.get("env", "live")
+        secret = ApiKey.generate_secret(env)
+        prefix = ApiKey.derive_prefix(secret)
+        hashed = ApiKey.hash_secret(secret)
+
+        kwargs["prefix"] = prefix
+        kwargs["hashed_key"] = hashed
+
+        instance = super()._create(model_class, *args, **kwargs)
+        # Stash the plaintext secret on the instance for test assertions
+        instance._plaintext_secret = secret
+        return instance
+
+    @classmethod
+    def create_with_secret(cls, **kwargs):
+        """
+        Convenience: returns (ApiKey instance, plaintext_secret) tuple.
+
+        Example:
+            key, secret = ApiKeyFactory.create_with_secret(org=org, created_by=user)
+        """
+        instance = cls.create(**kwargs)
+        return instance, instance._plaintext_secret
+
