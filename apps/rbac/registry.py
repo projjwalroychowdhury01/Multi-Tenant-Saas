@@ -58,6 +58,9 @@ BILLING_MANAGE = "billing:manage"
 # Analytics / reporting
 ANALYTICS_READ = "analytics:read"
 
+# Audit logs
+AUDIT_LOGS_READ = "audit_logs:read"
+
 # ── All permissions in one set (convenient for OWNER) ─────────────────────────
 
 _ALL_PERMISSIONS: frozenset[str] = frozenset(
@@ -72,6 +75,7 @@ _ALL_PERMISSIONS: frozenset[str] = frozenset(
         BILLING_READ,
         BILLING_MANAGE,
         ANALYTICS_READ,
+        AUDIT_LOGS_READ,
     ]
 )
 
@@ -90,6 +94,7 @@ PERMISSION_REGISTRY: dict[str, frozenset[str]] = {
             SETTINGS_MANAGE,
             BILLING_READ,     # ADMINs can see billing but cannot change it
             ANALYTICS_READ,
+            AUDIT_LOGS_READ,  # ADMINs can read audit logs
         ]
     ),
     RoleEnum.MEMBER: frozenset(

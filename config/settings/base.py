@@ -49,6 +49,7 @@ LOCAL_APPS = [
     "apps.tenants",
     "apps.users",
     "apps.rbac",
+    "apps.api_keys",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -66,6 +67,8 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Tenant-aware middleware — order matters
     "apps.tenants.middleware.TenantContextMiddleware",
+    # Rate limiting — must come AFTER TenantContextMiddleware (needs request.org)
+    "apps.core.middleware.RateLimitMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -132,6 +135,12 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # ── Django REST Framework ──────────────────────────────────────────────────────
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
+        # ApiKey auth MUST come first:
+        #   - sk_live_/sk_test_ tokens: handled here, JWT never sees them
+        #   - JWT tokens: we return None → JWT auth class handles them
+        # If JWT were first, it would raise AuthenticationFailed on sk_live_ tokens
+        # and DRF would never reach ApiKeyAuthentication.
+        "apps.api_keys.authentication.ApiKeyAuthentication",
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
@@ -172,6 +181,9 @@ SPECTACULAR_SETTINGS = {
 # ── Custom Settings ────────────────────────────────────────────────────────────
 API_KEY_SECRET = env("API_KEY_SECRET", default="changeme-api-key-secret-32bytes!")
 INVITE_TOKEN_EXPIRY_HOURS = env("INVITE_TOKEN_EXPIRY_HOURS")
+
+# Rate limiting — set to False in testing.py to disable the middleware globally
+RATE_LIMIT_ENABLED = env.bool("RATE_LIMIT_ENABLED", default=True)
 
 # ── Email ──────────────────────────────────────────────────────────────────────
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")

@@ -181,6 +181,12 @@ class CanManageBilling(HasTenantPermission):
     required_scope = "billing:manage"
 
 
+class CanReadAuditLogs(HasTenantPermission):
+    """ADMIN and OWNER only (``audit_logs:read``)."""
+    required_scope = "audit_logs:read"
+
+
+
 class IsAtLeastAdmin(permissions.BasePermission):
     """
     Shortcut: only OWNER or ADMIN may proceed.

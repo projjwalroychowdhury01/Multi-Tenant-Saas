@@ -31,3 +31,10 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 # Celery always eager in tests — tasks run synchronously
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
+
+# Disable Redis-backed rate limiting in tests — the LocMemCache backend
+# does not expose the raw Redis client needed for Lua scripts.
+RATE_LIMIT_ENABLED = False
+
+# Deterministic HMAC secret for test key generation
+API_KEY_SECRET = "test-api-key-hmac-secret-32bytes!"

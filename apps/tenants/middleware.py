@@ -2,10 +2,15 @@
 TenantContextMiddleware — injects the current organisation into thread-local
 storage so that TenantManager can auto-filter all ORM queries.
 
-This middleware runs AFTER JWTAuthMiddleware which sets request.org.
-It reads request.org (set by the authentication layer) and calls
-set_current_org() so every subsequent ORM call in this thread gets the
-correct tenant filter applied automatically.
+JWT flow:
+  The JWTAuthentication class (configured in DEFAULT_AUTHENTICATION_CLASSES)
+  decodes the token and populates request.user.  The `org_id` claim in the
+  token is used by this middleware to resolve request.org.
+
+API key flow (Phase 3):
+  ApiKeyAuthentication sets request.org directly during authentication because
+  it resolves the org from the key itself (no token claim needed).  This
+  middleware detects that request.org is already set and skips the DB lookup.
 
 CRITICAL SAFETY NOTE:
   The `finally` block in __call__ ALWAYS clears the tenant context,
@@ -23,9 +28,19 @@ class TenantContextMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        # Bind the org resolved by the auth middleware (may be None for
-        # unauthenticated requests — TenantManager handles None gracefully).
+        # ApiKeyAuthentication sets request.org directly before middleware runs.
+        # JWT flow: request.org is set below via token claim resolution.
+        # Both paths converge here — we just bind whichever org was resolved.
         org = getattr(request, "org", None)
+
+        # JWT path: resolve org from token claims if not already set by API key auth.
+        # This runs lazily on first access in views via DRF's request wrapper,
+        # but we need org in thread-local BEFORE the view executes.
+        if org is None:
+            org = _resolve_org_from_jwt(request)
+            if org is not None:
+                request.org = org
+
         set_current_org(org)
 
         try:
@@ -35,3 +50,30 @@ class TenantContextMiddleware:
             clear_current_org()
 
         return response
+
+
+def _resolve_org_from_jwt(request):
+    """
+    Extract org_id from the JWT payload and resolve the Organization instance.
+
+    Returns None on any failure (unauthenticated, missing claim, deleted org).
+    """
+    try:
+        # Force DRF to run authentication — this populates request.auth
+        from rest_framework.request import Request as DRFRequest
+        if not isinstance(request, DRFRequest):
+            return None
+
+        auth = request.auth  # triggers JWT decode if not already done
+        if auth is None:
+            return None
+
+        payload = getattr(auth, "payload", {})
+        org_id = payload.get("org_id")
+        if not org_id:
+            return None
+
+        from apps.tenants.models import Organization
+        return Organization.all_objects.filter(id=org_id, is_active=True).first()
+    except Exception:
+        return None

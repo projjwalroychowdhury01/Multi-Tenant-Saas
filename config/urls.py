@@ -10,6 +10,8 @@ urlpatterns = [
     path("auth/", include("apps.users.urls")),
     # Organisation / member-management
     path("orgs/", include("apps.tenants.urls")),
+    # API Key management
+    path("api-keys/", include("apps.api_keys.urls")),
     # Core
     path("", include("apps.core.urls")),
     # OpenAPI schema
