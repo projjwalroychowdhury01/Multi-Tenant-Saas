@@ -50,6 +50,7 @@ LOCAL_APPS = [
     "apps.users",
     "apps.rbac",
     "apps.api_keys",
+    "apps.billing",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -113,6 +114,14 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+
+# ── Celery Beat Schedule ────────────────────────────────────────────────────────
+CELERY_BEAT_SCHEDULE = {
+    "aggregate-daily-usage": {
+        "task": "apps.billing.tasks.aggregate_daily_usage",
+        "schedule": 3600,  # every hour (seconds)
+    },
+}
 
 # ── Password Validation ────────────────────────────────────────────────────────
 AUTH_PASSWORD_VALIDATORS = [

@@ -1,8 +1,8 @@
 """
-Cross-tenant isolation test suite — Phase 2 + Phase 3.
+Cross-tenant isolation test suite — Phase 2 + Phase 3 + Phase 4.
 
 These tests verify that Org A's authenticated tokens cannot read, mutate,
-or delete Org B's members or invitations through any API endpoint.
+or delete Org B's resources through any API endpoint.
 
 RULE: Every test in this file MUST assert HTTP 404 (not 403) to prevent
       confirming resource existence to a foreign tenant.  If a 403 is ever
@@ -18,6 +18,13 @@ Phase 3 endpoints under test:
   GET    /orgs/<org_b_id>/invitations/
   POST   /orgs/<org_b_id>/invitations/
   DELETE /orgs/<org_b_id>/invitations/<inv_id>/
+
+Phase 4 (billing) isolation — subscription and invoice endpoints are
+scoped to request.org, NOT to a URL org_id parameter, so cross-tenant
+isolation is enforced by the TenantContextMiddleware rather than 404.
+The tests confirm:
+  - Org A client sees only Org A's subscription, not Org B's
+  - Org A client sees only Org A's invoices, not Org B's
 """
 
 import pytest
@@ -225,3 +232,78 @@ class TestCrossTenantIsolation:
         assert res.status_code == status.HTTP_404_NOT_FOUND, (
             f"Expected 404 but got {res.status_code}: {res.data}"
         )
+
+    # ── Phase 4: Billing Isolation ────────────────────────────────────────────
+
+    def test_subscription_endpoint_shows_own_org_only(self):
+        """
+        GET /billing/subscription/ must return Org A's subscription,
+        NOT Org B's, regardless of the token used.
+
+        Billing endpoints are scoped by request.org (from JWT claim),
+        not by a URL org_id parameter.
+        """
+        from tests.factories import PlanFactory, SubscriptionFactory
+
+        org_a, org_b, _, _, client_a, _, _ = self.setup_two_orgs()
+
+        plan_a = PlanFactory(slug="iso-plan-a", name="Isolation Plan A", price_monthly="0.00")
+        plan_b = PlanFactory(slug="iso-plan-b", name="Isolation Plan B", price_monthly="49.00")
+        SubscriptionFactory(organization=org_a, plan=plan_a)
+        SubscriptionFactory(organization=org_b, plan=plan_b)
+
+        # Client A should see Org A's subscription (plan-a)
+        res = client_a.get("/billing/subscription/")
+        assert res.status_code == status.HTTP_200_OK
+        assert res.data["plan"]["slug"] == "iso-plan-a", (
+            f"Expected plan 'iso-plan-a' but got {res.data['plan']['slug']} — "
+            f"cross-tenant bleed detected!"
+        )
+
+    def test_subscription_endpoint_cannot_access_org_b_data(self):
+        """
+        Client A's JWT is scoped to Org A. Even if Org B has a subscription,
+        Client A must see a 404 if Org A has no subscription — not Org B's data.
+        """
+        from tests.factories import PlanFactory, SubscriptionFactory
+
+        org_a, org_b, _, _, client_a, _, _ = self.setup_two_orgs()
+
+        # Only Org B has a subscription
+        plan_b = PlanFactory(slug="iso-only-b", name="Only Org B Plan", price_monthly="0.00")
+        SubscriptionFactory(organization=org_b, plan=plan_b)
+
+        # Client A (Org A) gets 404 — their org has no subscription
+        res = client_a.get("/billing/subscription/")
+        assert res.status_code == status.HTTP_404_NOT_FOUND, (
+            f"Expected 404 for Org A (no sub) but got {res.status_code} — "
+            f"possible cross-tenant bleed to Org B's data!"
+        )
+
+    def test_invoices_endpoint_shows_own_org_only(self):
+        """
+        GET /billing/invoices/ returns only invoices for the authenticated
+        user's org, never from another tenant's subscription.
+        """
+        from tests.factories import InvoiceFactory, PlanFactory, SubscriptionFactory
+
+        org_a, org_b, _, _, client_a, _, _ = self.setup_two_orgs()
+
+        plan_a = PlanFactory(slug="iso-inv-a", name="Invoice Iso A", price_monthly="0.00")
+        plan_b = PlanFactory(slug="iso-inv-b", name="Invoice Iso B", price_monthly="49.00")
+        sub_a = SubscriptionFactory(organization=org_a, plan=plan_a)
+        sub_b = SubscriptionFactory(organization=org_b, plan=plan_b)
+        InvoiceFactory(subscription=sub_a, amount_cents=100)
+        InvoiceFactory(subscription=sub_b, amount_cents=4900)
+
+        res = client_a.get("/billing/invoices/")
+        assert res.status_code == status.HTTP_200_OK
+        # Client A should see exactly 1 invoice (their own), not Org B's
+        assert len(res.data) == 1, (
+            f"Expected 1 invoice for Org A but got {len(res.data)} — "
+            f"possible cross-tenant bleed!"
+        )
+        assert res.data[0]["amount_cents"] == 100, (
+            f"Invoice amount mismatch — cross-tenant invoice returned!"
+        )
+
