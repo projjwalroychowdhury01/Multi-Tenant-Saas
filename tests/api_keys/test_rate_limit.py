@@ -14,6 +14,7 @@ import time
 from unittest.mock import MagicMock, patch
 
 import pytest
+from django.test import override_settings
 
 from apps.core.rate_limit import (
     PLAN_LIMITS,
@@ -146,14 +147,14 @@ class TestRateLimitMiddleware:
     """
 
     @pytest.mark.django_db
+    @override_settings(RATE_LIMIT_ENABLED=True)
     def test_rate_limit_headers_present_when_enabled(self, auth_client):
         """Headers should be injected when middleware is active."""
         allowed_result = RateLimitResult(
             allowed=True, limit=100, remaining=99, reset_at=9999999999, retry_after=0, current_count=1
         )
-        with patch("apps.core.middleware.RateLimitMiddleware._disabled", new=False):
-            with patch("apps.core.rate_limit.check_rate_limit", return_value=allowed_result):
-                res = auth_client.get("/auth/me")
+        with patch("apps.core.rate_limit.check_rate_limit", return_value=allowed_result):
+            res = auth_client.get("/auth/me")
         assert "X-RateLimit-Limit" in res
         assert "X-RateLimit-Remaining" in res
         assert "X-RateLimit-Reset" in res
@@ -161,23 +162,23 @@ class TestRateLimitMiddleware:
         assert res["X-RateLimit-Remaining"] == "99"
 
     @pytest.mark.django_db
+    @override_settings(RATE_LIMIT_ENABLED=True)
     def test_429_returned_when_limit_exceeded(self, auth_client):
         """Middleware must block the request and return 429 with Retry-After."""
         denied_result = RateLimitResult(
             allowed=False, limit=100, remaining=0, reset_at=9999999999, retry_after=45, current_count=101
         )
-        with patch("apps.core.middleware.RateLimitMiddleware._disabled", new=False):
-            with patch("apps.core.rate_limit.check_rate_limit", return_value=denied_result):
-                res = auth_client.get("/auth/me")
+        with patch("apps.core.rate_limit.check_rate_limit", return_value=denied_result):
+            res = auth_client.get("/auth/me")
         assert res.status_code == 429
         assert res["Retry-After"] == "45"
         assert res.json()["code"] == "rate_limit_exceeded"
 
     @pytest.mark.django_db
+    @override_settings(RATE_LIMIT_ENABLED=True)
     def test_unauthenticated_requests_bypass_rate_limit(self, api_client):
         """Requests with no org context must not be rate-limited."""
-        with patch("apps.core.middleware.RateLimitMiddleware._disabled", new=False):
-            res = api_client.get("/health")
+        res = api_client.get("/health")
         # Should reach the view — not blocked by rate limiter
         assert res.status_code == 200
         # No rate limit headers on public endpoints

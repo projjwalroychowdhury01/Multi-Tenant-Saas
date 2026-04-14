@@ -62,11 +62,9 @@ class RateLimitMiddleware:
 
     def __init__(self, get_response):
         self.get_response = get_response
-        # Bypass rate limiting entirely in testing (can be overridden per-test)
-        self._disabled = getattr(settings, "RATE_LIMIT_ENABLED", True) is False
 
     def __call__(self, request):
-        if self._disabled:
+        if getattr(settings, "RATE_LIMIT_ENABLED", True) is False:
             return self.get_response(request)
 
         org = getattr(request, "org", None)

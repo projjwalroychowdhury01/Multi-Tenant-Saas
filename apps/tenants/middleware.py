@@ -59,17 +59,20 @@ def _resolve_org_from_jwt(request):
     Returns None on any failure (unauthenticated, missing claim, deleted org).
     """
     try:
-        # Force DRF to run authentication — this populates request.auth
-        from rest_framework.request import Request as DRFRequest
-        if not isinstance(request, DRFRequest):
-            return None
+        from rest_framework_simplejwt.authentication import JWTAuthentication
+        from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken
 
-        auth = request.auth  # triggers JWT decode if not already done
-        if auth is None:
+        try:
+            auth_tuple = JWTAuthentication().authenticate(request)
+        except (AuthenticationFailed, InvalidToken):
             return None
-
-        payload = getattr(auth, "payload", {})
-        org_id = payload.get("org_id")
+            
+        if auth_tuple is None:
+            return None
+            
+        _, token = auth_tuple
+        org_id = token.payload.get("org_id")
+        
         if not org_id:
             return None
 

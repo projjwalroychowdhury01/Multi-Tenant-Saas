@@ -5,8 +5,10 @@ Organization  — the top-level unit of tenancy (a company / workspace).
 TenantModel   — abstract base that every tenant-scoped model inherits.
 RoleEnum      — the five-tier role hierarchy.
 OrganizationMembership — links a user to an org with a role.
+OrganizationInvitation — secure email-based invitation to join an org.
 """
 
+import secrets
 import uuid
 
 from django.db import models
@@ -145,3 +147,104 @@ class OrganizationMembership(TimeStampedModel):
 
     def __str__(self):
         return f"{self.user} — {self.organization} ({self.role})"
+
+
+# ── OrganizationInvitation ─────────────────────────────────────────────────────
+
+
+class InvitationStatus(models.TextChoices):
+    """
+    Lifecycle states for an invitation token.
+
+    Transitions:  PENDING → ACCEPTED (on successful accept)
+                  PENDING → EXPIRED  (on manual revoke or TTL-based task)
+    """
+
+    PENDING = "PENDING", "Pending"
+    ACCEPTED = "ACCEPTED", "Accepted"
+    EXPIRED = "EXPIRED", "Expired"
+
+
+class OrganizationInvitation(TimeStampedModel):
+    """
+    A secure, single-use invitation sent to an email address.
+
+    Design decisions
+    ────────────────
+    - `token` is generated with `secrets.token_urlsafe(32)` (256 bits of
+      randomness) — safe against brute-force enumeration.
+    - Tokens are unique across the entire table (not just per-org), so URLs
+      cannot be guessed from org ID + sequential IDs.
+    - OWNER role is forbidden at invitation time (the OWNER is always the
+      founder; ownership transfer is a separate, privileged operation).
+    - A unique constraint on (organization, email, status=PENDING) is enforced
+      at the application layer (see ``CreateInvitationSerializer``) — a DB
+      partial unique index is added in the migration for safety.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="invitations",
+        db_index=True,
+    )
+    email = models.EmailField(db_index=True)
+    role = models.CharField(
+        max_length=20,
+        choices=RoleEnum.choices,
+        default=RoleEnum.MEMBER,
+    )
+    token = models.CharField(
+        max_length=64,
+        unique=True,
+        db_index=True,
+        editable=False,
+    )
+    invited_by = models.ForeignKey(
+        "users.User",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="sent_org_invitations",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=InvitationStatus.choices,
+        default=InvitationStatus.PENDING,
+        db_index=True,
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Organization Invitation"
+        verbose_name_plural = "Organization Invitations"
+        indexes = [
+            models.Index(fields=["token"]),
+            models.Index(fields=["organization", "email"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = secrets.token_urlsafe(32)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Invite {self.email} → {self.organization} ({self.status})"
+
+    def accept(self, accepting_user) -> "OrganizationMembership":
+        """
+        Consume this invitation: create the membership and mark ACCEPTED.
+
+        Assumes the caller has already verified that `accepting_user.email`
+        matches ``self.email`` and that the invitation is still PENDING.
+        """
+        membership = OrganizationMembership.objects.create(
+            organization=self.organization,
+            user=accepting_user,
+            role=self.role,
+            invited_by=self.invited_by,
+        )
+        self.status = InvitationStatus.ACCEPTED
+        self.save(update_fields=["status"])
+        return membership
