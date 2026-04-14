@@ -17,6 +17,8 @@ urlpatterns = [
     path("invitations/<str:token>/accept/", PublicInvitationView.as_view(), name="invitation-accept"),
     # API Key management
     path("api-keys/", include("apps.api_keys.urls")),
+    # Billing
+    path("billing/", include("apps.billing.urls")),
     # Core
     path("", include("apps.core.urls")),
     # OpenAPI schema
