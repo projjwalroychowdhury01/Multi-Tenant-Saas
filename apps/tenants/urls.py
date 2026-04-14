@@ -1,32 +1,47 @@
 """
 URL patterns for the tenants app — mounted at /orgs/ in root urls.py.
 
-GET    /orgs/<org_id>/members/           — list members
-PATCH  /orgs/<org_id>/members/<uid>/     — change role
-DELETE /orgs/<org_id>/members/<uid>/     — remove member
+Member management:
+  GET    /orgs/<org_id>/members/           — list members
+  PATCH  /orgs/<org_id>/members/<uid>/     — change role
+  DELETE /orgs/<org_id>/members/<uid>/     — remove member
+
+Invitations (tenant-scoped):
+  GET    /orgs/<org_id>/invitations/       — list invitations
+  POST   /orgs/<org_id>/invitations/       — create invitation
+  DELETE /orgs/<org_id>/invitations/<inv_id>/ — revoke invitation
 """
 
 from django.urls import path
 
-from apps.tenants.views import change_member_role, list_members, remove_member
+from apps.tenants import views
 
 urlpatterns = [
-    # List all members in an org
+    # ── Members ────────────────────────────────────────────────────
     path(
         "<uuid:org_id>/members/",
-        list_members,
+        views.list_members,
         name="org-members-list",
     ),
-    # Change a specific member's role
     path(
         "<uuid:org_id>/members/<uuid:uid>/role/",
-        change_member_role,
+        views.change_member_role,
         name="org-member-change-role",
     ),
-    # Remove a specific member from the org
     path(
         "<uuid:org_id>/members/<uuid:uid>/",
-        remove_member,
+        views.remove_member,
         name="org-member-remove",
+    ),
+    # ── Invitations (Phase 3) ────────────────────────────────────
+    path(
+        "<uuid:org_id>/invitations/",
+        views.list_or_create_invitations,
+        name="org-invitations-list-create",
+    ),
+    path(
+        "<uuid:org_id>/invitations/<uuid:inv_id>/",
+        views.revoke_invitation,
+        name="org-invitation-revoke",
     ),
 ]

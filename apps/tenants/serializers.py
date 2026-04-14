@@ -8,7 +8,7 @@ ChangeRoleSerializer           — validates role change requests
 
 from rest_framework import serializers
 
-from apps.tenants.models import Organization, OrganizationMembership, RoleEnum
+from apps.tenants.models import Organization, OrganizationMembership, OrganizationInvitation, InvitationStatus, RoleEnum
 from apps.rbac.registry import role_rank
 
 
@@ -85,3 +85,118 @@ class ChangeRoleSerializer(serializers.Serializer):
             )
         return value
 
+
+# ── Invitation Serializers (Phase 3) ───────────────────────────────────────────
+
+
+class OrganizationInvitationSerializer(serializers.ModelSerializer):
+    """
+    Read-only representation of an invitation for listing / detail views.
+    Exposes the inviter's email so the frontend can display "Invited by X".
+    """
+
+    invited_by_email = serializers.EmailField(
+        source="invited_by.email", read_only=True, default=None
+    )
+    invited_by_name = serializers.CharField(
+        source="invited_by.display_name", read_only=True, default=None
+    )
+    org_name = serializers.CharField(source="organization.name", read_only=True)
+
+    class Meta:
+        model = OrganizationInvitation
+        fields = [
+            "id",
+            "email",
+            "role",
+            "status",
+            "token",
+            "org_name",
+            "invited_by_email",
+            "invited_by_name",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class PublicInvitationSerializer(serializers.ModelSerializer):
+    """
+    Safe, unauthenticated-accessible representation of an invitation.
+    Intentionally omits the token itself and internal IDs.
+    Only enough info for the frontend "Accept Invite" screen.
+    """
+
+    org_name = serializers.CharField(source="organization.name", read_only=True)
+    org_slug = serializers.CharField(source="organization.slug", read_only=True)
+    invited_by_name = serializers.CharField(
+        source="invited_by.display_name", read_only=True, default=None
+    )
+
+    class Meta:
+        model = OrganizationInvitation
+        fields = ["id", "email", "role", "status", "org_name", "org_slug", "invited_by_name", "created_at"]
+        read_only_fields = fields
+
+
+class CreateInvitationSerializer(serializers.Serializer):
+    """
+    Validates a request to create a new invitation.
+
+    Business rules enforced:
+      1. Role cannot be OWNER — ownership is created at org-founding time only.
+      2. Email must not already belong to an active member of the org.
+      3. A PENDING invitation for this email+org pair must not already exist.
+
+    The `organization` context must be injected via `context={"organization": org}`
+    before calling `.is_valid()`.
+    """
+
+    email = serializers.EmailField()
+    role = serializers.ChoiceField(choices=RoleEnum.choices, default=RoleEnum.MEMBER)
+
+    def validate_role(self, value):
+        if value == RoleEnum.OWNER:
+            raise serializers.ValidationError(
+                "Users cannot be invited directly to the OWNER role."
+            )
+        return value
+
+    def validate(self, data):
+        org = self.context.get("organization")
+        email = data["email"]
+
+        if org is None:
+            raise serializers.ValidationError("Organization context is required.")
+
+        # Rule 2: email must not already be a member
+        already_member = OrganizationMembership.objects.filter(
+            organization=org, user__email__iexact=email
+        ).exists()
+        if already_member:
+            raise serializers.ValidationError(
+                {"email": f"{email} is already a member of this organisation."}
+            )
+
+        # Rule 3: no duplicate PENDING invite
+        already_invited = OrganizationInvitation.objects.filter(
+            organization=org,
+            email__iexact=email,
+            status=InvitationStatus.PENDING,
+        ).exists()
+        if already_invited:
+            raise serializers.ValidationError(
+                {"email": f"A pending invitation for {email} already exists."}
+            )
+
+        return data
+
+
+class AcceptInvitationSerializer(serializers.Serializer):
+    """
+    Empty body serializer for ``POST /invitations/<token>/accept/``.
+
+    Exists purely for OpenAPI schema completeness; there is no request body.
+    DRF-Spectacular will generate a 200 response schema from the view's
+    explicit serializer annotation.
+    """
+    pass

@@ -1,8 +1,8 @@
 """
-Cross-tenant isolation test suite — Phase 2.
+Cross-tenant isolation test suite — Phase 2 + Phase 3.
 
 These tests verify that Org A's authenticated tokens cannot read, mutate,
-or delete Org B's members through any API endpoint.
+or delete Org B's members or invitations through any API endpoint.
 
 RULE: Every test in this file MUST assert HTTP 404 (not 403) to prevent
       confirming resource existence to a foreign tenant.  If a 403 is ever
@@ -13,6 +13,11 @@ Phase 2 endpoints under test:
   GET    /orgs/<org_b_id>/members/
   PATCH  /orgs/<org_b_id>/members/<uid>/role/
   DELETE /orgs/<org_b_id>/members/<uid>/
+
+Phase 3 endpoints under test:
+  GET    /orgs/<org_b_id>/invitations/
+  POST   /orgs/<org_b_id>/invitations/
+  DELETE /orgs/<org_b_id>/invitations/<inv_id>/
 """
 
 import pytest
@@ -20,7 +25,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from tests.factories import MembershipFactory, OrganizationFactory, UserFactory
-from apps.tenants.models import RoleEnum
+from apps.tenants.models import OrganizationInvitation, RoleEnum
 
 
 @pytest.mark.django_db
@@ -173,3 +178,50 @@ class TestCrossTenantIsolation:
         res = client.delete(f"/orgs/{org_a.id}/members/{extra_b.id}/")
         assert res.status_code == status.HTTP_401_UNAUTHORIZED
 
+    # ── Phase 3: Invitation Isolation ──────────────────────────────────────
+
+    def test_cannot_list_foreign_org_invitations(self):
+        """
+        Client A requesting Org B's invitation list must get 404 —
+        the org's existence is never confirmed to a non-member.
+        """
+        org_a, org_b, user_a, user_b, client_a, client_b, extra_b = self.setup_two_orgs()
+        res = client_a.get(f"/orgs/{org_b.id}/invitations/")
+        assert res.status_code == status.HTTP_404_NOT_FOUND, (
+            f"Expected 404 but got {res.status_code}: {res.data}"
+        )
+
+    def test_cannot_create_invitation_in_foreign_org(self):
+        """
+        Client A cannot send an invitation into Org B.
+        """
+        org_a, org_b, user_a, user_b, client_a, client_b, extra_b = self.setup_two_orgs()
+        res = client_a.post(
+            f"/orgs/{org_b.id}/invitations/",
+            {"email": "outsider@example.com", "role": RoleEnum.MEMBER},
+            format="json",
+        )
+        assert res.status_code == status.HTTP_404_NOT_FOUND, (
+            f"Expected 404 but got {res.status_code}: {res.data}"
+        )
+
+    def test_cannot_revoke_foreign_org_invitation(self):
+        """
+        Client A cannot revoke Org B's PENDING invitation even
+        if they somehow obtain the correct invitation UUID.
+        """
+        org_a, org_b, _, user_b, client_a, client_b, extra_b = self.setup_two_orgs()
+
+        # Create a real invite in Org B
+        inv = OrganizationInvitation.objects.create(
+            organization=org_b,
+            email="victim@example.com",
+            role=RoleEnum.MEMBER,
+            invited_by=user_b,
+        )
+
+        # Client A (member of Org A) tries to revoke it using Org B's ID
+        res = client_a.delete(f"/orgs/{org_b.id}/invitations/{inv.id}/")
+        assert res.status_code == status.HTTP_404_NOT_FOUND, (
+            f"Expected 404 but got {res.status_code}: {res.data}"
+        )

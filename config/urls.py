@@ -4,12 +4,17 @@ from django.contrib import admin
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from apps.tenants.views import PublicInvitationView
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     # Auth routes
     path("auth/", include("apps.users.urls")),
     # Organisation / member-management
     path("orgs/", include("apps.tenants.urls")),
+    # Global invitation token endpoints (unauthenticated GET, authenticated POST)
+    path("invitations/<str:token>/", PublicInvitationView.as_view(), name="invitation-resolve"),
+    path("invitations/<str:token>/accept/", PublicInvitationView.as_view(), name="invitation-accept"),
     # API Key management
     path("api-keys/", include("apps.api_keys.urls")),
     # Core
