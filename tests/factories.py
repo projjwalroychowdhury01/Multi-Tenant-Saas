@@ -36,7 +36,8 @@ class OrganizationFactory(DjangoModelFactory):
 
     name = factory.Sequence(lambda n: f"Test Org {n}")
     slug = factory.LazyAttribute(lambda o: o.name.lower().replace(" ", "-"))
-    plan = "FREE"
+    # billing_plan is intentionally None by default — test orgs start unsubscribed.
+    # Link a plan via SubscriptionFactory or set billing_plan explicitly if needed.
     is_active = True
 
 

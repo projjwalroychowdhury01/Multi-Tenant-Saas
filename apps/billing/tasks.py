@@ -3,9 +3,11 @@ Celery tasks for the billing app.
 
 Tasks
 ─────
-  send_invoice_email      — fire-and-forget email on payment_succeeded
-  aggregate_daily_usage   — Celery Beat periodic task; aggregates Redis
-                            counters into UsageRecord rows
+  send_invoice_email        — fire-and-forget email on payment_succeeded
+  aggregate_daily_usage     — Celery Beat periodic task; aggregates Redis
+                              counters into UsageRecord rows
+  notify_usage_threshold    — sends warning (80 %) / critical (100 %) usage
+                              alert emails; deduplicated via Redis sentinel keys
 """
 
 import logging
@@ -164,3 +166,125 @@ def _flush_usage_key(redis_client, key: str) -> None:
 
     except Exception as exc:
         logger.error("_flush_usage_key failed for key %r: %s", key, exc)
+
+
+# ── notify_usage_threshold ──────────────────────────────────────────────────────
+
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=30, ignore_result=True)
+def notify_usage_threshold(
+    self,
+    org_id: str,
+    limit_type: str,
+    usage: int,
+    limit: int,
+    severity: str,
+) -> None:
+    """
+    Send a usage-threshold alert email when an org crosses the 80 % or 100 %
+    consumption boundary for a given *limit_type*.
+
+    Deduplication
+    ─────────────
+    A Redis sentinel key ``usage_alert:{org_id}:{limit_type}:{severity}:{YYYY-MM}``
+    is set atomically with ``SET NX`` (set-if-not-exists).  If the key already
+    exists (alert already sent this month), the task returns immediately without
+    sending another email.  The key TTL is 32 days so it expires automatically
+    after the billing period rolls over.
+
+    Severity levels:
+    - ``warning``  — 80 % consumed; prompts the org to consider upgrading.
+    - ``critical`` — 100 % consumed; grace period is now open; hard block
+                     is imminent if no upgrade is made.
+
+    Args:
+        org_id:     String UUID of the organization.
+        limit_type: One of ``members_count``, ``api_calls_per_month``, etc.
+        usage:      Current usage value at alert-fire time.
+        limit:      Plan limit value.
+        severity:   ``"warning"`` or ``"critical"``.
+    """
+    from django.conf import settings
+    from django.core.cache import cache
+    from django.core.mail import send_mail
+    from django.utils.timezone import now
+
+    try:
+        from apps.tenants.models import Organization
+
+        try:
+            org = Organization.all_objects.select_related("billing_plan").get(id=org_id)
+        except Organization.DoesNotExist:
+            logger.warning("notify_usage_threshold: org %s not found", org_id)
+            return
+
+        # ── Deduplication via Redis NX key ─────────────────────────────────────
+        month_bucket = now().strftime("%Y-%m")
+        sentinel_key = f"usage_alert:{org_id}:{limit_type}:{severity}:{month_bucket}"
+
+        # cache.add() uses SET NX semantics — returns True only if the key was
+        # absent (i.e., we are the first to fire this alert this month).
+        # TTL: 32 days so the key outlasts any billing month.
+        already_sent = not cache.add(sentinel_key, "1", timeout=60 * 60 * 24 * 32)
+        if already_sent:
+            logger.debug(
+                "notify_usage_threshold: alert %s already sent this month, skipping.",
+                sentinel_key,
+            )
+            return
+
+        # ── Compose the email ──────────────────────────────────────────────────
+        pct = int((usage / limit) * 100) if limit else 0
+        plan_name = org.billing_plan.name if org.billing_plan else "Free"
+
+        if severity == "critical":
+            subject = f"⚠️ URGENT: {org.name} has reached 100 % of its {limit_type} limit"
+            message = (
+                f"Hi {org.name},\n\n"
+                f"Your organisation has reached {pct} % ({usage}/{limit}) of its "
+                f"{limit_type} quota on the {plan_name} plan.\n\n"
+                f"A 7-day grace period is now active. If you do not upgrade before "
+                f"this period ends, new requests that exceed the limit will be blocked.\n\n"
+                f"To avoid service interruption, please upgrade your plan immediately:\n"
+                f"  POST /billing/subscribe\n\n"
+                f"– The {org.name} platform"
+            )
+        else:  # warning
+            subject = f"Heads up: {org.name} is at {pct} % of its {limit_type} limit"
+            message = (
+                f"Hi {org.name},\n\n"
+                f"Your organisation has used {pct} % ({usage}/{limit}) of its "
+                f"{limit_type} quota on the {plan_name} plan.\n\n"
+                f"Consider upgrading before you hit the limit to avoid service interruption:\n"
+                f"  POST /billing/subscribe\n\n"
+                f"– The {org.name} platform"
+            )
+
+        # ── Send the email ─────────────────────────────────────────────────────
+        # In production, resolve the org owner's real email address.
+        # The console email backend used in dev/test will print the output.
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[f"owner@{org.slug}.example.com"],
+                fail_silently=True,
+            )
+            logger.info(
+                "notify_usage_threshold: sent %s alert for org %s %s (%d/%d)",
+                severity, org_id, limit_type, usage, limit,
+            )
+        except Exception as mail_exc:
+            logger.warning(
+                "notify_usage_threshold: mail send failed for org %s: %s",
+                org_id, mail_exc,
+            )
+
+    except Exception as exc:
+        logger.error(
+            "notify_usage_threshold failed for org %s %s: %s",
+            org_id, limit_type, exc,
+        )
+        raise self.retry(exc=exc)
+

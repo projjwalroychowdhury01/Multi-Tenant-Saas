@@ -47,18 +47,40 @@ class Organization(SoftDeleteMixin, TimeStampedModel):
 
     - Every other tenant-scoped record holds a FK to this model.
     - `slug` is the stable, URL-safe public identifier.
-    - `plan` will be a FK to billing.Plan once Phase 4 is built;
-      for Phase 1 it is stored as a plain char field.
+    - `billing_plan` is a nullable FK to billing.Plan — null until the org
+      subscribes to a plan (managed via Subscription).  The plain `plan`
+      CharField has been removed; use `organization.subscription.plan` or
+      `organization.billing_plan` for plan-level logic.
     - `stripe_customer_id` is null until the org subscribes.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=100, unique=True, db_index=True)
-    # Phase 1 — plan stored as text; will become a FK in Phase 4
-    plan = models.CharField(max_length=50, default="FREE")
+    # Phase 4 — billing_plan replaces the old plan CharField.
+    # Nullable: orgs without an active subscription have billing_plan=None.
+    billing_plan = models.ForeignKey(
+        "billing.Plan",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="organizations",
+        help_text="Active plan tier. Managed via the Subscription model; do not set directly.",
+    )
     stripe_customer_id = models.CharField(max_length=255, null=True, blank=True)
     is_active = models.BooleanField(default=True)
+
+    @property
+    def plan_slug(self) -> str:
+        """
+        Convenience: return the plan slug string for rate-limit lookups.
+
+        Falls back to 'FREE' when no billing_plan is linked so that
+        unsubscribed orgs are treated as the lowest tier.
+        """
+        if self.billing_plan_id and self.billing_plan:
+            return self.billing_plan.slug.upper()
+        return "FREE"
 
     class Meta:
         ordering = ["name"]
