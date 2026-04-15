@@ -119,6 +119,11 @@ class MockBillingService(BillingService):
             current_period_end=period_end,
         )
 
+        # Sync org.billing_plan FK to the new plan so rate-limiting and
+        # feature-gate helpers see the correct tier without an extra join.
+        org.billing_plan = plan
+        org.save(update_fields=["billing_plan", "updated_at"])
+
         # Issue an opening invoice
         amount_cents = int(plan.price_monthly * 100)
         Invoice.objects.create(

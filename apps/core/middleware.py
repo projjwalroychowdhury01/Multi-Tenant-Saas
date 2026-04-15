@@ -74,13 +74,13 @@ class RateLimitMiddleware:
 
         from apps.core.rate_limit import check_rate_limit
 
-        result = check_rate_limit(str(org.id), getattr(org, "plan", "FREE"))
+        result = check_rate_limit(str(org.id), org.plan_slug)
 
         if not result.allowed:
             logger.warning(
                 "Rate limit exceeded: org=%s plan=%s count=%s limit=%s",
                 org.id,
-                org.plan,
+                org.plan_slug,
                 result.current_count,
                 result.limit,
             )
