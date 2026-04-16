@@ -216,3 +216,83 @@ class TestRemoveMemberMatrix:
         client = _make_client_for_role(RoleEnum.ADMIN, org)
         res = client.delete(f"/orgs/{org.id}/members/{client._user.id}/")
         assert res.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+class TestAuditLogsMatrix:
+    """GET /audit-logs/ — requires audit_logs:read (ADMIN+ only)"""
+
+    # ADMIN and OWNER have audit_logs:read → expect 200
+    @pytest.mark.parametrize("role", [RoleEnum.ADMIN, RoleEnum.OWNER])
+    def test_admin_and_owner_can_read_audit_logs(self, role):
+        org = OrganizationFactory()
+        client = _make_client_for_role(role, org)
+        res = client.get("/audit-logs/")
+        assert res.status_code == status.HTTP_200_OK
+        assert "results" in res.data
+
+    # MEMBER, VIEWER, BILLING do not have audit_logs:read → expect 403
+    @pytest.mark.parametrize("role", [
+        RoleEnum.MEMBER,
+        RoleEnum.VIEWER,
+        RoleEnum.BILLING,
+    ])
+    def test_lower_roles_denied_audit_logs(self, role):
+        org = OrganizationFactory()
+        client = _make_client_for_role(role, org)
+        res = client.get("/audit-logs/")
+        assert res.status_code == status.HTTP_403_FORBIDDEN
+
+    @pytest.mark.parametrize("role", [RoleEnum.ADMIN, RoleEnum.OWNER])
+    def test_audit_log_export_allowed(self, role):
+        """Audit log export follows same permissions as list."""
+        org = OrganizationFactory()
+        client = _make_client_for_role(role, org)
+        res = client.get("/audit-logs/export/")
+        assert res.status_code == status.HTTP_200_OK
+        assert res["Content-Type"] == "text/csv"
+
+
+@pytest.mark.django_db
+class TestUsageSummaryMatrix:
+    """GET /usage/summary/ — requires billing:read (VIEWER+)"""
+
+    # OWNER, ADMIN, VIEWER, BILLING have billing:read → expect 200
+    @pytest.mark.parametrize("role", [
+        RoleEnum.OWNER,
+        RoleEnum.ADMIN,
+        RoleEnum.VIEWER,
+        RoleEnum.BILLING,
+    ])
+    def test_billing_read_roles_see_usage(self, role):
+        org = OrganizationFactory()
+        client = _make_client_for_role(role, org)
+        
+        # Setup subscription for the org
+        from apps.billing.models import Subscription, Plan
+        from datetime import timedelta
+        from django.utils import timezone
+        
+        plan = Plan.objects.create(
+            name="Test Plan",
+            slug=f"test-{role}",
+            limits={"api_calls_per_month": 1000}
+        )
+        now = timezone.now()
+        Subscription.objects.create(
+            organization=org,
+            plan=plan,
+            current_period_start=now - timedelta(days=15),
+            current_period_end=now + timedelta(days=15),
+        )
+        
+        res = client.get("/usage/summary/")
+        assert res.status_code == status.HTTP_200_OK
+        assert "current_usage" in res.data
+
+    # MEMBER lacks billing:read → expect 403
+    def test_member_denied_usage_summary(self):
+        org = OrganizationFactory()
+        client = _make_client_for_role(RoleEnum.MEMBER, org)
+        res = client.get("/usage/summary/")
+        assert res.status_code == status.HTTP_403_FORBIDDEN
