@@ -50,7 +50,9 @@ LOCAL_APPS = [
     "apps.users",
     "apps.rbac",
     "apps.api_keys",
+    "apps.audit_logs",
     "apps.billing",
+    "apps.usage",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
