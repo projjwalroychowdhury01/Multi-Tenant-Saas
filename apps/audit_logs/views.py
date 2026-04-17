@@ -20,7 +20,7 @@ from rest_framework.response import Response
 from apps.audit_logs.models import AuditLog
 from apps.audit_logs.serializers import AuditLogSerializer
 from apps.rbac.permissions import require_permission
-from apps.rbac.registry import Permission
+from apps.rbac.registry import AUDIT_LOGS_READ
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ def _apply_filters(qs, params):
 
 
 @api_view(["GET"])
-@require_permission(Permission.SETTINGS_READ)
+@require_permission(AUDIT_LOGS_READ)
 def list_audit_logs(request: Request) -> Response:
     """
     List audit log events for the caller's organisation.
@@ -97,7 +97,7 @@ def list_audit_logs(request: Request) -> Response:
 
 
 @api_view(["GET"])
-@require_permission(Permission.SETTINGS_READ)
+@require_permission(AUDIT_LOGS_READ)
 def get_audit_log(request: Request, log_id: str) -> Response:
     """
     Retrieve a single AuditLog entry by UUID.
@@ -116,7 +116,7 @@ def get_audit_log(request: Request, log_id: str) -> Response:
 
 
 @api_view(["GET"])
-@require_permission(Permission.SETTINGS_READ)
+@require_permission(AUDIT_LOGS_READ)
 def export_audit_logs(request: Request) -> Response:
     """
     Export filtered audit logs as a downloadable CSV file.

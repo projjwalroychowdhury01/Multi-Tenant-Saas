@@ -53,6 +53,7 @@ LOCAL_APPS = [
     "apps.audit_logs",
     "apps.billing",
     "apps.usage",
+    "apps.features",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -72,6 +73,8 @@ MIDDLEWARE = [
     "apps.tenants.middleware.TenantContextMiddleware",
     # Rate limiting — must come AFTER TenantContextMiddleware (needs request.org)
     "apps.core.middleware.RateLimitMiddleware",
+    # Sentry context enrichment (production only)
+    "apps.core.sentry_middleware.SentryContextMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -199,3 +202,41 @@ RATE_LIMIT_ENABLED = env.bool("RATE_LIMIT_ENABLED", default=True)
 # ── Email ──────────────────────────────────────────────────────────────────────
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@example.com")
+
+# ── Logging ────────────────────────────────────────────────────────────────────
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {message}",
+            "style": "{",
+        },
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": env.bool("DEBUG") and "DEBUG" or "INFO",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "apps": {
+            "handlers": ["console"],
+            "level": env.bool("DEBUG") and "DEBUG" or "INFO",
+            "propagate": False,
+        },
+    },
+}
