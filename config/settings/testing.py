@@ -3,6 +3,12 @@ Test settings — uses SQLite and in-memory cache so tests run
 without any external services (no Docker required).
 """
 
+import os
+
+# Ensure test settings can be imported without requiring a local .env file.
+# Keep length >= 32 bytes to avoid JWT HMAC key-length warnings in tests.
+os.environ.setdefault("SECRET_KEY", "test-secret-key-for-local-ci-only-32bytes")
+
 from .development import *  # noqa: F401, F403
 
 # Force SQLite for tests

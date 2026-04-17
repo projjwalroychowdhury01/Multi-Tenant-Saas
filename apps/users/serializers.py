@@ -108,14 +108,23 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def _get_membership(self, obj):
+        cache_key = f"user_membership:{obj.id}"
+        cached_membership = self.context.get(cache_key)
+        if cache_key in self.context:
+            return cached_membership
+
         # request.org set by auth middleware
         request = self.context.get("request")
         org = getattr(request, "org", None) if request else None
         if org:
-            return OrganizationMembership.objects.filter(
+            membership = OrganizationMembership.objects.filter(
                 user=obj, organization=org
             ).first()
-        return OrganizationMembership.objects.filter(user=obj).order_by("joined_at").first()
+        else:
+            membership = OrganizationMembership.objects.filter(user=obj).order_by("joined_at").first()
+
+        self.context[cache_key] = membership
+        return membership
 
     def get_org_id(self, obj):
         m = self._get_membership(obj)
