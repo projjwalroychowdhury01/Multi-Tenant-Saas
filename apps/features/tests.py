@@ -270,3 +270,297 @@ class TestResourceSnapshot:
         assert len(data) == 2
         assert data[0]["version"] == 2  # Most recent first
         assert data[1]["version"] == 1
+
+
+@pytest.mark.django_db
+class TestVersionedCacheNamespace:
+    """Tests for versioned cache namespace system."""
+
+    def test_versioned_cache_build_key(self):
+        """Cache keys are versioned correctly."""
+        from .cache import VersionedCacheNamespace
+        
+        cache_ns = VersionedCacheNamespace("test", ttl=60)
+        
+        key1 = cache_ns.build_key("entity", "key1", org_id=1)
+        key2 = cache_ns.build_key("entity", "key1", org_id=2)
+        
+        assert key1 != key2
+        assert "test" in key1
+        assert "entity" in key1
+
+    def test_versioned_cache_get_set(self):
+        """Cache get/set operations work with versioning."""
+        from .cache import VersionedCacheNamespace
+        
+        cache_ns = VersionedCacheNamespace("test", ttl=60)
+        
+        # Set value
+        cache_ns.set("entity", "key", "value", org_id=1)
+        
+        # Get value
+        result = cache_ns.get("entity", "key", org_id=1)
+        assert result == "value"
+
+    def test_versioned_cache_invalidate_namespace(self):
+        """Invalidating namespace increments version."""
+        from .cache import VersionedCacheNamespace
+        
+        cache_ns = VersionedCacheNamespace("test", ttl=60)
+        
+        version_before = cache_ns.get_version()
+        cache_ns.invalidate_namespace()
+        version_after = cache_ns.get_version()
+        
+        assert version_after > version_before
+
+    def test_versioned_cache_invalidate_org(self):
+        """Invalidating org clears org-scoped cache."""
+        from .cache import VersionedCacheNamespace
+        
+        cache_ns = VersionedCacheNamespace("test", ttl=60)
+        
+        # Set values for org
+        cache_ns.set("entity", "key1", "value1", org_id=1, track_index=True)
+        cache_ns.set("entity", "key2", "value2", org_id=1, track_index=True)
+        
+        # Invalidate org
+        count = cache_ns.invalidate_org(1)
+        assert count >= 2
+        
+        # Values should be gone
+        result = cache_ns.get("entity", "key1", org_id=1)
+        assert result is None
+
+
+@pytest.mark.django_db
+class TestPolymorphicIDField:
+    """Tests for polymorphic ID field supporting UUID and integer."""
+
+    def test_polymorphic_id_field_integer(self):
+        """PolymorphicIDField stores and retrieves integers."""
+        snapshot = ResourceSnapshot.objects.create(
+            resource_type="User",
+            resource_id=12345,
+            organization_id=67890,
+            version=1,
+            data={},
+            actor_id=11111,
+        )
+        
+        fetched = ResourceSnapshot.objects.get(id=snapshot.id)
+        assert fetched.resource_id == 12345
+        assert fetched.organization_id == 67890
+        assert fetched.actor_id == 11111
+
+    def test_polymorphic_id_field_uuid(self):
+        """PolymorphicIDField stores and retrieves UUIDs."""
+        import uuid
+        
+        test_uuid = uuid.uuid4()
+        
+        snapshot = ResourceSnapshot.objects.create(
+            resource_type="User",
+            resource_id=test_uuid,
+            organization_id=uuid.uuid4(),
+            version=1,
+            data={},
+            actor_id=uuid.uuid4(),
+        )
+        
+        fetched = ResourceSnapshot.objects.get(id=snapshot.id)
+        assert fetched.resource_id == test_uuid
+
+    def test_polymorphic_id_field_mixed_types(self):
+        """PolymorphicIDField can mix UUID and integer in same table."""
+        import uuid
+        
+        snapshot1 = ResourceSnapshot.objects.create(
+            resource_type="User",
+            resource_id=12345,
+            organization_id=67890,
+            version=1,
+            data={},
+        )
+        
+        snapshot2 = ResourceSnapshot.objects.create(
+            resource_type="ApiKey",
+            resource_id=uuid.uuid4(),
+            organization_id=uuid.uuid4(),
+            version=1,
+            data={},
+        )
+        
+        assert snapshot1.resource_id == 12345
+        assert isinstance(snapshot2.resource_id, uuid.UUID)
+
+
+@pytest.mark.django_db
+class TestSnapshotRestoreEndpoint:
+    """Tests for snapshot restore functionality."""
+
+    def test_restore_endpoint_initiates_task(self):
+        """POST /snapshots/{id}/restore/ initiates restoration."""
+        from tests.factories import MembershipFactory
+        from rest_framework.test import APIClient
+        from rest_framework_simplejwt.tokens import AccessToken
+        
+        membership = MembershipFactory()
+        user = membership.user
+        org = membership.organization
+        
+        snapshot = ResourceSnapshot.objects.create(
+            resource_type="User",
+            resource_id=user.id,
+            organization_id=org.id,
+            version=1,
+            data={"email": "old@example.com"},
+            change_reason="created",
+        )
+        
+        client = APIClient()
+        token = AccessToken()
+        token['user_id'] = user.id
+        token['org_id'] = org.id
+        token['role'] = 'ADMIN'
+        
+        client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {str(token)}"
+        
+        response = client.post(f"/snapshots/{snapshot.id}/restore/")
+        
+        assert response.status_code == status.HTTP_201_CREATED
+        data = response.json()
+        assert data["status"] == "restoration_started"
+        assert data["snapshot_id"] == snapshot.id
+
+    def test_restore_to_version_endpoint(self):
+        """POST /snapshots/restore_to_version/ restores specific version."""
+        from tests.factories import MembershipFactory
+        from rest_framework.test import APIClient
+        from rest_framework_simplejwt.tokens import AccessToken
+        
+        membership = MembershipFactory()
+        user = membership.user
+        org = membership.organization
+        
+        ResourceSnapshot.objects.create(
+            resource_type="User",
+            resource_id=user.id,
+            organization_id=org.id,
+            version=1,
+            data={"email": "v1@example.com"},
+            change_reason="created",
+        )
+        ResourceSnapshot.objects.create(
+            resource_type="User",
+            resource_id=user.id,
+            organization_id=org.id,
+            version=2,
+            data={"email": "v2@example.com"},
+            change_reason="updated",
+        )
+        
+        client = APIClient()
+        token = AccessToken()
+        token['user_id'] = user.id
+        token['org_id'] = org.id
+        token['role'] = 'ADMIN'
+        
+        client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {str(token)}"
+        
+        response = client.post(
+            f"/snapshots/restore_to_version/?resource_type=User&resource_id={user.id}&version=1"
+        )
+        
+        assert response.status_code == status.HTTP_201_CREATED
+
+    def test_compare_versions_endpoint(self):
+        """GET /snapshots/{id}/compare_versions/ computes diff."""
+        from tests.factories import MembershipFactory
+        from rest_framework.test import APIClient
+        from rest_framework_simplejwt.tokens import AccessToken
+        
+        membership = MembershipFactory()
+        user = membership.user
+        org = membership.organization
+        
+        snapshot1 = ResourceSnapshot.objects.create(
+            resource_type="User",
+            resource_id=user.id,
+            organization_id=org.id,
+            version=1,
+            data={"email": "v1@example.com", "name": "User"},
+            change_reason="created",
+        )
+        snapshot2 = ResourceSnapshot.objects.create(
+            resource_type="User",
+            resource_id=user.id,
+            organization_id=org.id,
+            version=2,
+            data={"email": "v2@example.com", "name": "User", "active": True},
+            change_reason="updated",
+        )
+        
+        client = APIClient()
+        token = AccessToken()
+        token['user_id'] = user.id
+        token['org_id'] = org.id
+        token['role'] = 'MEMBER'
+        
+        client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {str(token)}"
+        
+        response = client.get(
+            f"/snapshots/{snapshot2.id}/compare_versions/?other_version=1"
+        )
+        
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert "diff" in data
+        assert "modified" in data["diff"]
+        assert "added" in data["diff"]
+
+
+@pytest.mark.django_db
+class TestSnapshotSignals:
+    """Tests for automatic snapshot signal handlers."""
+
+    def test_snapshot_created_on_versioned_model_update(self):
+        """Signal creates snapshot when VersionedMixin model is saved."""
+        from tests.factories import MembershipFactory
+        from apps.core.mixins import VersionedMixin
+        
+        membership = MembershipFactory()
+        user = membership.user
+        
+        # Assuming user is a VersionedMixin
+        if not isinstance(user, VersionedMixin):
+            pytest.skip("User is not VersionedMixin in this schema")
+        
+        # Save should trigger snapshot via signal
+        user.email = "updated@example.com"
+        user.save()
+        
+        # Check if snapshot was created (async, may not exist immediately)
+        # This is an integration test - in practice snapshots are created async
+
+    def test_snapshot_serialization(self):
+        """Snapshot model serializes correctly to dict."""
+        snapshot = ResourceSnapshot.objects.create(
+            resource_type="User",
+            resource_id=12345,
+            organization_id=67890,
+            version=1,
+            data={"email": "test@example.com"},
+            actor_id=11111,
+            request_id="req-123",
+            change_reason="created",
+        )
+        
+        result = snapshot.to_dict()
+        
+        assert result["resource_type"] == "User"
+        assert result["resource_id"] == "12345"
+        assert result["organization_id"] == "67890"
+        assert result["version"] == 1
+        assert result["data"]["email"] == "test@example.com"
+

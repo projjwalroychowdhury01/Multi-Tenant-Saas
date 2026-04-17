@@ -8,6 +8,12 @@ __pycache__/
 # C extensions
 *.so
 
+.github
+# commit graph outputs, ignore the extraction cache
+graphify-out/
+generate_report.py
+
+
 # Distribution / packaging
 .Python
 build/
