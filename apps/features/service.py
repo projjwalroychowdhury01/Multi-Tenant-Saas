@@ -10,12 +10,17 @@ from django.db import IntegrityError
 
 from apps.tenants.context import get_current_org
 
+from .cache import VersionedCacheNamespace, CacheKeyBuilder
 from .models import FeatureFlag
+
+
+# Initialize versioned cache namespace for feature flags
+_feature_cache = VersionedCacheNamespace("feature", ttl=60)
 
 
 class FeatureFlagService:
     """
-    Service for evaluating feature flags with caching and rollout logic.
+    Service for evaluating feature flags with versioned caching and rollout logic.
     """
 
     CACHE_TTL = 60  # seconds
@@ -26,7 +31,7 @@ class FeatureFlagService:
         Evaluate whether a feature flag is enabled for a given organization.
         
         Logic:
-        1. Check Redis cache first
+        1. Check versioned Redis cache first
         2. Check explicit org override (enabled_for_orgs)
         3. Check plan-level default
         4. Apply rollout percentage (deterministic hash)
@@ -34,8 +39,9 @@ class FeatureFlagService:
         Returns:
             bool: True if enabled, False otherwise
         """
-        cache_key = f"feature_flag:{org_id}:{flag_key}"
-        cached = cache.get(cache_key)
+        # Try versioned cache first
+        cache_key = CacheKeyBuilder.feature_flag_key(org_id, flag_key)
+        cached = _feature_cache.get("flag", cache_key, org_id=org_id)
         if cached is not None:
             return cached
 
@@ -43,14 +49,18 @@ class FeatureFlagService:
             flag = FeatureFlag.objects.get(key=flag_key, is_active=True)
         except FeatureFlag.DoesNotExist:
             # If flag doesn't exist, default to disabled
-            cache.set(cache_key, False, FeatureFlagService.CACHE_TTL)
+            _feature_cache.set(
+                "flag", cache_key, False, org_id=org_id, track_index=True
+            )
             return False
 
         # Step 1: Check explicit org override
         org_id_str = str(org_id)
         if org_id_str in flag.enabled_for_orgs:
             result = flag.enabled_for_orgs[org_id_str]
-            cache.set(cache_key, result, FeatureFlagService.CACHE_TTL)
+            _feature_cache.set(
+                "flag", cache_key, result, org_id=org_id, track_index=True
+            )
             return result
 
         # Step 2: Check plan-level default
@@ -62,20 +72,26 @@ class FeatureFlagService:
 
             if plan_name in flag.enabled_for_plans:
                 result = flag.enabled_for_plans[plan_name]
-                cache.set(cache_key, result, FeatureFlagService.CACHE_TTL)
+                _feature_cache.set(
+                    "flag", cache_key, result, org_id=org_id, track_index=True
+                )
                 return result
         except Organization.DoesNotExist:
             pass
 
         # Step 3: Apply rollout percentage
         if flag.rollout_pct > 0:
-            if FeatureFlagService._is_org_in_rollout(org_id, flag_key, flag.rollout_pct):
-                cache.set(cache_key, True, FeatureFlagService.CACHE_TTL)
+            if FeatureFlagService._is_org_in_rollout(
+                org_id, flag_key, flag.rollout_pct
+            ):
+                _feature_cache.set(
+                    "flag", cache_key, True, org_id=org_id, track_index=True
+                )
                 return True
 
         # Step 4: Fall back to default
         result = flag.enabled_default
-        cache.set(cache_key, result, FeatureFlagService.CACHE_TTL)
+        _feature_cache.set("flag", cache_key, result, org_id=org_id, track_index=True)
         return result
 
     @staticmethod
@@ -101,37 +117,63 @@ class FeatureFlagService:
         """
         Evaluate all active feature flags for a given organization.
         
+        Uses versioned cache for bulk operations.
+        
         Returns:
             dict: {flag_key: enabled}
         """
+        # Try to get from cache first
+        cache_key = CacheKeyBuilder.org_features_key(org_id)
+        cached = _feature_cache.get("features", cache_key, org_id=org_id)
+        if cached:
+            return cached
+
         flags = FeatureFlag.objects.filter(is_active=True)
         result = {}
 
         for flag in flags:
             result[flag.key] = FeatureFlagService.is_enabled(org_id, flag.key)
 
+        # Store in cache
+        _feature_cache.set(
+            "features", cache_key, result, org_id=org_id, track_index=True
+        )
+
         return result
 
     @staticmethod
-    def invalidate_cache(flag_key: Optional[str] = None, org_id: Optional[int] = None):
+    def invalidate_cache(
+        flag_key: Optional[str] = None, org_id: Optional[int] = None
+    ) -> int:
         """
-        Invalidate cache entries for a feature flag.
+        Invalidate cache entries for a feature flag using versioned namespacing.
         
-        If flag_key and org_id are specified, invalidate just that combination.
-        If only flag_key is specified, invalidate all orgs for that flag.
-        If neither is specified, invalidate all feature flag caches.
+        Args:
+            flag_key: Specific flag to invalidate
+            org_id: Specific org to invalidate
+        
+        Returns:
+            Number of entries invalidated
         """
+        count = 0
+
         if flag_key and org_id:
-            cache_key = f"feature_flag:{org_id}:{flag_key}"
-            cache.delete(cache_key)
+            # Invalidate specific flag for specific org
+            cache_key = CacheKeyBuilder.feature_flag_key(org_id, flag_key)
+            _feature_cache.delete("flag", cache_key, org_id=org_id)
+            count += 1
         elif flag_key:
-            # Would need to track all orgs or use a separate index
-            # For now, use cache.clear() but this is not ideal for production
-            # Better solution: use Django's cache key pattern or a dedicated key set
-            pass
+            # Invalidate flag for all orgs
+            count += _feature_cache.invalidate_entity(f"flag:{flag_key}")
+        elif org_id:
+            # Invalidate all flags for specific org
+            count += _feature_cache.invalidate_org(org_id)
         else:
-            # Clear all feature flag caches
-            cache.clear()
+            # Invalidate entire namespace
+            _feature_cache.invalidate_namespace()
+            count = 1
+
+        return count
 
     @staticmethod
     def create_or_update_flag(
@@ -164,5 +206,15 @@ class FeatureFlagService:
             },
         )
 
+        # Invalidate cache for this flag across all orgs
         FeatureFlagService.invalidate_cache(flag_key=key)
         return flag
+
+    @staticmethod
+    def get_cache_stats() -> dict:
+        """Get cache namespace statistics."""
+        return {
+            "namespace": _feature_cache.namespace,
+            "version": _feature_cache.get_version(),
+            "ttl": _feature_cache.ttl,
+        }
