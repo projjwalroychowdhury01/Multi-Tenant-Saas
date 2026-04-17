@@ -88,11 +88,22 @@ def get_subscription(request):
 @permission_classes([IsAuthenticated, CanManageBilling])
 def subscribe(request):
     """
-    Upgrade or downgrade the organization's plan.
+    Upgrade or downgrade the organization's plan with idempotency support.
 
     Requires ``billing:manage`` permission (OWNER and BILLING role only).
     Replaces any existing subscription atomically.
+    
+    Supports Idempotency-Key header for replay protection:
+    - If provided, retried requests return the same result
+    - Prevents duplicate charges if request is retried
+    
+    Example:
+        POST /billing/subscribe
+        Idempotency-Key: my-request-id-12345
+        {"plan_id": "pro"}
     """
+    from apps.billing.idempotency import ensure_idempotency
+
     org = getattr(request, "org", None)
     if org is None:
         return Response(
@@ -104,16 +115,42 @@ def subscribe(request):
     serializer.is_valid(raise_exception=True)
     plan = serializer.get_plan()
 
+    # Apply idempotency decorator manually for this function
+    idempotency_key = request.headers.get("Idempotency-Key")
+    if idempotency_key:
+        from apps.billing.idempotency import IdempotencyManager
+        
+        # Check for cached result
+        cached = IdempotencyManager.get_result(str(org.id), idempotency_key)
+        if cached:
+            logger.info(f"Returning cached subscription result for idempotency key {idempotency_key}")
+            return Response(
+                cached["data"],
+                status=cached["status"],
+            )
+
+    # Perform subscription
     billing = get_billing_service()
     subscription = billing.subscribe(org, plan)
 
-    return Response(
-        {
-            "message": f"Successfully subscribed to the {plan.name} plan.",
-            "subscription": SubscriptionSerializer(subscription).data,
-        },
-        status=status.HTTP_200_OK,
-    )
+    response_data = {
+        "message": f"Successfully subscribed to the {plan.name} plan.",
+        "subscription": SubscriptionSerializer(subscription).data,
+    }
+
+    # Store result for idempotency
+    if idempotency_key:
+        from apps.billing.idempotency import IdempotencyManager
+        IdempotencyManager.store_result(
+            org_id=str(org.id),
+            idempotency_key=idempotency_key,
+            operation_type="subscribe",
+            request_body=request.body or b"{}",
+            response_status=status.HTTP_200_OK,
+            response_data=response_data,
+        )
+
+    return Response(response_data, status=status.HTTP_200_OK)
 
 
 # ── GET /billing/invoices ──────────────────────────────────────────────────────
@@ -156,19 +193,36 @@ def list_invoices(request):
 @permission_classes([AllowAny])
 def webhook_handler(request):
     """
-    Receive and process mock Stripe webhook events.
+    Receive and process webhook events with strict validation.
 
-    Security: verifies HMAC-SHA256 signature in ``X-Webhook-Signature``
-    header before processing any payload. Requests without a valid
-    signature are rejected with HTTP 400.
-
+    Security:
+    - Verifies HMAC-SHA256 signature in ``X-Webhook-Signature`` header
+    - Validates event payload schema (required/optional fields, type checking)
+    - Implements replay protection via event_id deduplication
+    - Routes malformed but signed events to dead-letter queue for manual review
+    
+    Idempotency:
+    - Events are deduplicated by event_id (unique constraint in DB)
+    - Retried webhooks return same result (cached in DB)
+    
+    Error Handling:
+    - Invalid signature → 400 (malicious/corrupted)
+    - Schema validation failure → 400 + dead-letter queue
+    - Processing error → 500 + retry by webhook provider
+    
     This endpoint is intentionally unauthenticated (AllowAny) because
-    real webhook handlers from Stripe/payment processors never carry
-    user session tokens — they use signature-based authentication instead.
+    real webhook handlers never carry user session tokens — they use
+    signature-based authentication instead.
     """
+    from apps.billing.webhook_validation import (
+        validate_webhook_payload_signature_and_schema,
+        queue_dead_letter_event,
+    )
+
     # ── Signature Verification ─────────────────────────────────────────────
     received_sig = request.headers.get("X-Webhook-Signature", "")
     if not received_sig:
+        logger.warning("webhook_handler: missing X-Webhook-Signature header")
         return Response(
             {"error": "Missing X-Webhook-Signature header.", "code": "missing_signature"},
             status=status.HTTP_400_BAD_REQUEST,
@@ -182,26 +236,58 @@ def webhook_handler(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # ── Payload Validation ─────────────────────────────────────────────────
-    serializer = WebhookSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
+    # ── Payload Parsing ────────────────────────────────────────────────────
+    try:
+        import json
+        payload = json.loads(payload_bytes)
+    except json.JSONDecodeError as exc:
+        logger.error(f"webhook_handler: invalid JSON: {exc}")
+        return Response(
+            {"error": "Invalid JSON payload.", "code": "invalid_json"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
-    event_type = serializer.validated_data["event_type"]
-    payload = serializer.validated_data["payload"]
+    # ── Schema Validation + Signature Check ────────────────────────────────
+    is_valid, error_msg, cleaned_payload = validate_webhook_payload_signature_and_schema(
+        payload,
+        received_sig,
+        verify_webhook_signature,
+    )
+
+    if not is_valid:
+        logger.error(f"webhook_handler: validation failed: {error_msg}")
+        # Route to dead-letter queue for manual review
+        queue_dead_letter_event(payload, received_sig, error_msg)
+        return Response(
+            {"error": error_msg, "code": "validation_failed"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     # ── Event Dispatch ─────────────────────────────────────────────────────
+    event_type = payload.get("event_type")
+    org_id = payload.get("org_id")
+    event_id = payload.get("event_id", f"{event_type}_{id(payload)}")
+
     try:
-        result = get_billing_service().handle_webhook(event_type, payload)
+        result = get_billing_service().handle_webhook(
+            event_type=event_type,
+            payload=cleaned_payload,
+            signature=received_sig,
+            org_id=org_id,
+        )
+        return Response(result, status=status.HTTP_200_OK)
+
     except ValueError as exc:
+        logger.error(f"webhook_handler: unsupported event type: {event_type}")
+        queue_dead_letter_event(payload, received_sig, str(exc))
         return Response(
             {"error": str(exc), "code": "unsupported_event"},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
     except Exception as exc:
-        logger.error("webhook_handler: unexpected error for event %s: %s", event_type, exc)
+        logger.exception(f"webhook_handler: error processing event {event_id}: {exc}")
         return Response(
             {"error": "Internal error processing webhook.", "code": "internal_error"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-
-    return Response(result, status=status.HTTP_200_OK)

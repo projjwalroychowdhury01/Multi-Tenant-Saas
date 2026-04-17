@@ -219,3 +219,213 @@ class UsageRecord(TimeStampedModel):
             f"{self.organization} — {self.metric_name}: {self.quantity} "
             f"({self.period_start:%Y-%m-%d})"
         )
+
+
+# ── Idempotency ────────────────────────────────────────────────────────────────
+
+
+class IdempotencyKey(TimeStampedModel):
+    """
+    Stores results of idempotent API operations for replay protection.
+    
+    When a client sends a request with an Idempotency-Key header:
+    1. Check if key exists in cache/DB
+    2. If yes, return cached result (avoiding duplicate work)
+    3. If no, proceed with operation and store result
+    
+    Results are retained for 24 hours to prevent accidental replays.
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "tenants.Organization",
+        on_delete=models.CASCADE,
+        related_name="idempotency_keys",
+        db_index=True,
+    )
+    idempotency_key = models.CharField(
+        max_length=255,
+        help_text="Client-provided unique identifier (Idempotency-Key header)",
+        db_index=True,
+    )
+    operation_type = models.CharField(
+        max_length=100,
+        help_text="Type of operation (e.g., 'subscribe', 'cancel')",
+        db_index=True,
+    )
+    request_hash = models.CharField(
+        max_length=64,
+        help_text="SHA256 hash of request body for validation",
+    )
+    response_status = models.IntegerField(help_text="HTTP status code of result")
+    response_data = models.JSONField(help_text="Cached response body")
+    error_message = models.TextField(null=True, blank=True, help_text="Error if operation failed")
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["organization", "idempotency_key"]),
+            models.Index(fields=["created_at"]),
+        ]
+        verbose_name = "Idempotency Key"
+        verbose_name_plural = "Idempotency Keys"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "idempotency_key"],
+                name="unique_org_idempotency_key",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.organization} — {self.idempotency_key[:16]}... ({self.operation_type})"
+
+
+# ── Webhook Events ─────────────────────────────────────────────────────────────
+
+
+class WebhookEventStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    PROCESSED = "processed", "Processed"
+    FAILED = "failed", "Failed"
+    DEAD_LETTER = "dead_letter", "Dead Letter"
+
+
+class WebhookEvent(TimeStampedModel):
+    """
+    Stores incoming webhook events for replay protection and audit.
+    
+    Provides:
+    - Idempotent webhook delivery (replay protection via event_id)
+    - Audit trail of all webhook events (processed or failed)
+    - Dead-letter queue for malformed but signed events
+    - Retry mechanism for failed events
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event_id = models.CharField(
+        max_length=255,
+        unique=True,
+        db_index=True,
+        help_text="Stripe event ID or mock event ID (unique)",
+    )
+    event_type = models.CharField(
+        max_length=100,
+        db_index=True,
+        help_text="Event type (e.g., 'payment_succeeded')",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=WebhookEventStatus.choices,
+        default=WebhookEventStatus.PENDING,
+        db_index=True,
+    )
+    payload = models.JSONField(help_text="Complete webhook payload")
+    signature = models.CharField(
+        max_length=255,
+        help_text="HMAC signature for verification",
+    )
+    
+    # Processing metadata
+    organization = models.ForeignKey(
+        "tenants.Organization",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="webhook_events",
+        db_index=True,
+    )
+    processed_at = models.DateTimeField(null=True, blank=True)
+    error_message = models.TextField(null=True, blank=True)
+    retry_count = models.PositiveIntegerField(default=0)
+    
+    # Dead-letter info
+    dead_letter_reason = models.TextField(
+        null=True,
+        blank=True,
+        help_text="Reason event was moved to dead-letter queue",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["event_type", "status"]),
+            models.Index(fields=["status", "created_at"]),
+            models.Index(fields=["organization", "created_at"]),
+        ]
+        verbose_name = "Webhook Event"
+        verbose_name_plural = "Webhook Events"
+
+    def __str__(self):
+        return f"{self.event_type} ({self.status}) — {self.event_id[:12]}..."
+
+
+# ── Plan Limit Events ──────────────────────────────────────────────────────────
+
+
+class PlanLimitEventType(models.TextChoices):
+    WARNING = "limit_warning", "Limit Warning (80%)"
+    CRITICAL = "limit_critical", "Limit Critical (100%)"
+    GRACE_STARTED = "grace_started", "Grace Period Started"
+    GRACE_EXPIRED = "grace_expired", "Grace Period Expired"
+    LIMIT_RESOLVED = "limit_resolved", "Limit Resolved (Back Under)"
+
+
+class PlanLimitEvent(TimeStampedModel):
+    """
+    Event stream for plan limit violations and grace periods.
+    
+    Provides:
+    - Event log of limit violations for audit trail
+    - UX notifications (email, in-app alerts)
+    - Webhook forwarding to org's custom webhooks
+    - Analytics on usage patterns
+    """
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "tenants.Organization",
+        on_delete=models.CASCADE,
+        related_name="plan_limit_events",
+        db_index=True,
+    )
+    event_type = models.CharField(
+        max_length=20,
+        choices=PlanLimitEventType.choices,
+        db_index=True,
+    )
+    limit_type = models.CharField(
+        max_length=100,
+        help_text="Which limit was affected (members_count, api_calls_per_month, etc.)",
+        db_index=True,
+    )
+    
+    # Current usage metrics
+    current_usage = models.PositiveBigIntegerField()
+    limit_value = models.PositiveBigIntegerField()
+    usage_percentage = models.PositiveSmallIntegerField(
+        help_text="Usage as percentage (0-100+)"
+    )
+    
+    # Context
+    metadata = models.JSONField(
+        default=dict,
+        help_text="Additional context (plan name, period dates, etc.)",
+    )
+    
+    # Notification state
+    email_sent = models.BooleanField(default=False)
+    webhook_sent = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["organization", "event_type"]),
+            models.Index(fields=["event_type", "created_at"]),
+            models.Index(fields=["organization", "created_at"]),
+        ]
+        verbose_name = "Plan Limit Event"
+        verbose_name_plural = "Plan Limit Events"
+
+    def __str__(self):
+        pct = f"{self.usage_percentage}%"
+        return f"{self.organization} — {self.event_type} ({self.limit_type}: {pct})"

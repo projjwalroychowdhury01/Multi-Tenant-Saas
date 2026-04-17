@@ -288,3 +288,161 @@ def notify_usage_threshold(
         )
         raise self.retry(exc=exc)
 
+
+# ── Webhook Event Processing ───────────────────────────────────────────────────
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60, ignore_result=True)
+def process_webhook_event_async(self, event_id: str) -> None:
+    """
+    Asynchronously process a webhook event (retry-safe).
+    
+    Used for:
+    - Dead-letter event retry
+    - High-volume event processing
+    
+    Args:
+        event_id: UUID of WebhookEvent to process
+    """
+    from apps.billing.models import WebhookEvent, WebhookEventStatus
+
+    try:
+        event = WebhookEvent.objects.get(id=event_id)
+    except WebhookEvent.DoesNotExist:
+        logger.warning(f"process_webhook_event_async: event {event_id} not found")
+        return
+
+    if event.status == WebhookEventStatus.PROCESSED:
+        logger.debug(f"process_webhook_event_async: event {event_id} already processed")
+        return
+
+    try:
+        from apps.billing.services import get_billing_service
+
+        result = get_billing_service().handle_webhook(
+            event_type=event.event_type,
+            payload=event.payload,
+            signature=event.signature,
+            org_id=event.organization_id,
+        )
+
+        logger.info(f"process_webhook_event_async: event {event_id} processed successfully")
+
+    except Exception as exc:
+        logger.exception(f"process_webhook_event_async: error processing event {event_id}: {exc}")
+        raise self.retry(exc=exc)
+
+
+# ── Plan Limit Alerts ──────────────────────────────────────────────────────────
+
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=30, ignore_result=True)
+def send_plan_limit_alert_email(self, event_id: str) -> None:
+    """
+    Send email notification for plan limit events.
+    
+    Called by PlanLimitEventEmitter when a limit event is emitted.
+    
+    Args:
+        event_id: UUID of PlanLimitEvent
+    """
+    from apps.billing.models import PlanLimitEvent, PlanLimitEventType
+    from django.core.mail import send_mail
+    from django.conf import settings
+
+    try:
+        event = PlanLimitEvent.objects.select_related(
+            "organization",
+        ).get(id=event_id)
+
+        org = event.organization
+        subject = f"Plan limit: {event.limit_type} usage at {event.usage_percentage}%"
+
+        # Compose message based on event type
+        if event.event_type == PlanLimitEventType.CRITICAL:
+            severity = "CRITICAL"
+            action = "immediate action required"
+        elif event.event_type == PlanLimitEventType.WARNING:
+            severity = "WARNING"
+            action = "consider upgrading"
+        elif event.event_type == PlanLimitEventType.GRACE_EXPIRED:
+            severity = "URGENT"
+            action = "upgrade now or requests will be blocked"
+        else:
+            severity = "INFO"
+            action = "check your usage"
+
+        message = (
+            f"Hi {org.name},\n\n"
+            f"[{severity}] Your organization has reached {event.usage_percentage}% "
+            f"of the {event.limit_type} limit.\n\n"
+            f"Current: {event.current_usage} / {event.limit_value}\n"
+            f"Event type: {event.get_event_type_display()}\n\n"
+            f"{action.capitalize()}:\n"
+            f"  POST /billing/subscribe\n\n"
+            f"– The platform team"
+        )
+
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[f"owner@{org.slug}.example.com"],
+                fail_silently=True,
+            )
+            logger.info(f"send_plan_limit_alert_email: sent for event {event_id}")
+        except Exception as mail_exc:
+            logger.warning(f"send_plan_limit_alert_email: mail failed for event {event_id}: {mail_exc}")
+
+    except Exception as exc:
+        logger.error(f"send_plan_limit_alert_email failed for event {event_id}: {exc}")
+        raise self.retry(exc=exc)
+
+
+# ── Cleanup Tasks ──────────────────────────────────────────────────────────────
+
+
+@shared_task(bind=True, ignore_result=True)
+def cleanup_dead_letter_events(self, max_age_days: int = 30) -> None:
+    """
+    Periodically clean up old dead-letter events.
+    
+    Dead-letter events are kept for manual review, but older ones can be archived
+    or deleted based on retention policy.
+    
+    Args:
+        max_age_days: Delete events older than this many days (default 30)
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+    from apps.billing.models import WebhookEvent, WebhookEventStatus
+
+    try:
+        cutoff = timezone.now() - timedelta(days=max_age_days)
+        count, _ = WebhookEvent.objects.filter(
+            status=WebhookEventStatus.DEAD_LETTER,
+            created_at__lt=cutoff,
+        ).delete()
+
+        logger.info(f"cleanup_dead_letter_events: deleted {count} old events")
+
+    except Exception as exc:
+        logger.error(f"cleanup_dead_letter_events failed: {exc}")
+
+
+@shared_task(bind=True, ignore_result=True)
+def cleanup_old_idempotency_keys(self) -> None:
+    """
+    Periodically clean up expired idempotency keys.
+    
+    Idempotency keys are retained for 24 hours. This task runs nightly
+    to clean up older ones.
+    """
+    try:
+        from apps.billing.idempotency import IdempotencyManager
+        count = IdempotencyManager.cleanup_expired()
+        logger.info(f"cleanup_old_idempotency_keys: deleted {count} expired keys")
+    except Exception as exc:
+        logger.error(f"cleanup_old_idempotency_keys failed: {exc}")
+
