@@ -2,7 +2,15 @@
 
 from django.contrib import admin
 
-from apps.billing.models import Invoice, Plan, Subscription, UsageRecord
+from apps.billing.models import (
+    IdempotencyKey,
+    Invoice,
+    Plan,
+    PlanLimitEvent,
+    Subscription,
+    UsageRecord,
+    WebhookEvent,
+)
 
 
 @admin.register(Plan)
@@ -55,3 +63,79 @@ class UsageRecordAdmin(admin.ModelAdmin):
     search_fields = ["organization__name"]
     readonly_fields = ["id", "created_at", "updated_at"]
     date_hierarchy = "period_start"
+
+
+# ── Idempotency ────────────────────────────────────────────────────────────
+
+
+@admin.register(IdempotencyKey)
+class IdempotencyKeyAdmin(admin.ModelAdmin):
+    list_display = ["organization", "idempotency_key", "operation_type", "response_status", "created_at"]
+    list_filter = ["operation_type", "response_status"]
+    search_fields = ["organization__name", "idempotency_key"]
+    readonly_fields = ["id", "created_at", "updated_at"]
+
+    def has_add_permission(self, request):
+        # Prevent manual creation — only created by API
+        return False
+
+
+# ── Webhook Events ─────────────────────────────────────────────────────────
+
+
+@admin.register(WebhookEvent)
+class WebhookEventAdmin(admin.ModelAdmin):
+    list_display = ["event_type", "event_id", "status", "organization", "retry_count", "created_at"]
+    list_filter = ["status", "event_type"]
+    search_fields = ["event_id", "organization__name"]
+    readonly_fields = ["id", "created_at", "updated_at", "payload", "signature"]
+    date_hierarchy = "created_at"
+
+    def has_add_permission(self, request):
+        # Prevent manual creation — only created by webhook handler
+        return False
+
+    fieldsets = (
+        ("Event Metadata", {
+            "fields": ("id", "event_id", "event_type", "organization"),
+        }),
+        ("Processing", {
+            "fields": ("status", "processed_at", "retry_count", "error_message"),
+        }),
+        ("Dead Letter", {
+            "fields": ("dead_letter_reason",),
+            "classes": ("collapse",),
+        }),
+        ("Payload", {
+            "fields": ("payload", "signature"),
+            "classes": ("collapse",),
+        }),
+        ("Timestamps", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",),
+        }),
+    )
+
+
+# ── Plan Limit Events ──────────────────────────────────────────────────────
+
+
+@admin.register(PlanLimitEvent)
+class PlanLimitEventAdmin(admin.ModelAdmin):
+    list_display = [
+        "organization",
+        "event_type",
+        "limit_type",
+        "usage_percentage",
+        "email_sent",
+        "webhook_sent",
+        "created_at",
+    ]
+    list_filter = ["event_type", "limit_type", "email_sent", "webhook_sent"]
+    search_fields = ["organization__name", "limit_type"]
+    readonly_fields = ["id", "created_at", "updated_at"]
+    date_hierarchy = "created_at"
+
+    def has_add_permission(self, request):
+        # Prevent manual creation — only created by limit checking logic
+        return False

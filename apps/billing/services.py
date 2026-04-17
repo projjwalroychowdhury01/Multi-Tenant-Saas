@@ -159,18 +159,85 @@ class MockBillingService(BillingService):
         )
         return subscription
 
-    def handle_webhook(self, event_type: str, payload: dict):
+    def handle_webhook(self, event_type: str, payload: dict, signature: str = "", org_id = None):
+        """
+        Handle webhook event with validation and replay protection.
+        
+        Args:
+            event_type: Type of event (payment_succeeded, etc.)
+            payload: Event payload dict
+            signature: HMAC signature for verification
+            org_id: Organization ID (optional, extracted from payload if needed)
+        
+        Raises:
+            ValueError for unsupported events or validation failures
+        """
+        from apps.billing.models import WebhookEvent, WebhookEventStatus
+        from apps.billing.webhook_validation import (
+            validate_webhook_event,
+            queue_dead_letter_event,
+            WebhookValidationError,
+        )
+        
         if event_type not in self.SUPPORTED_EVENTS:
             raise ValueError(f"Unsupported webhook event: {event_type!r}")
 
-        handler = {
-            "payment_succeeded": self._on_payment_succeeded,
-            "payment_failed": self._on_payment_failed,
-            "subscription_canceled": self._on_subscription_canceled,
-        }[event_type]
+        # Extract event_id for replay protection
+        event_id = payload.get("event_id", f"{event_type}_{uuid.uuid4().hex}")
 
-        handler(payload)
-        return {"processed": True, "event": event_type}
+        # Check for duplicate event (replay protection)
+        if WebhookEvent.objects.filter(event_id=event_id).exists():
+            logger.warning(f"Webhook event {event_id} already processed (replay detected)")
+            # Return success to avoid webhook retry storms
+            return {"processed": True, "event": event_type, "cached": True}
+
+        # Validate webhook payload schema
+        try:
+            cleaned_payload = validate_webhook_event(event_type, payload)
+        except WebhookValidationError as exc:
+            logger.error(f"Webhook validation failed for {event_type}: {exc}")
+            queue_dead_letter_event(payload, signature, str(exc))
+            raise
+
+        # Determine organization from payload
+        if org_id is None:
+            org_id = payload.get("org_id")
+
+        # Record webhook event
+        webhook_event = WebhookEvent.objects.create(
+            event_id=event_id,
+            event_type=event_type,
+            status=WebhookEventStatus.PENDING,
+            payload=payload,
+            signature=signature,
+            organization_id=org_id,
+        )
+
+        try:
+            # Dispatch to handler
+            handler = {
+                "payment_succeeded": self._on_payment_succeeded,
+                "payment_failed": self._on_payment_failed,
+                "subscription_canceled": self._on_subscription_canceled,
+            }[event_type]
+
+            handler(cleaned_payload)
+
+            # Mark as processed
+            webhook_event.status = WebhookEventStatus.PROCESSED
+            webhook_event.processed_at = timezone.now()
+            webhook_event.save(update_fields=["status", "processed_at"])
+
+            logger.info(f"Webhook {event_id} processed successfully")
+            return {"processed": True, "event": event_type}
+
+        except Exception as exc:
+            logger.exception(f"Error processing webhook {event_id}: {exc}")
+            webhook_event.status = WebhookEventStatus.FAILED
+            webhook_event.error_message = str(exc)
+            webhook_event.retry_count = webhook_event.retry_count + 1
+            webhook_event.save(update_fields=["status", "error_message", "retry_count"])
+            raise
 
     # ── Private event handlers ─────────────────────────────────────────────────
 
