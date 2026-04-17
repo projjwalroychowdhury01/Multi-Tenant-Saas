@@ -42,9 +42,7 @@ def register(request):
     serializer.is_valid(raise_exception=True)
     user, org = serializer.save()
 
-    # Issue JWT tokens immediately after registration
-    refresh = RefreshToken.for_user(user)
-    # Embed org context into the token payload through our custom serializer
+    # Embed org context into the token payload through our custom serializer.
     token = CustomTokenObtainPairSerializer.get_token(user)
 
     return Response(
