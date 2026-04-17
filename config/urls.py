@@ -5,9 +5,12 @@ from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from apps.tenants.views import PublicInvitationView
+from apps.core.health import health_check
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # Health check
+    path("health/", health_check, name="health-check"),
     # Auth routes
     path("auth/", include("apps.users.urls")),
     # Organisation / member-management
@@ -23,6 +26,8 @@ urlpatterns = [
     path("usage/", include("apps.usage.urls")),
     # Audit Logs
     path("audit-logs/", include("apps.audit_logs.urls")),
+    # Feature Flags & Versioning
+    path("", include("apps.features.urls")),
     # Core
     path("", include("apps.core.urls")),
     # OpenAPI schema
