@@ -12,17 +12,10 @@ POST /auth/accept-invite/    — accept invitation and join org
 """
 
 from django.urls import path
+
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from apps.users.views import (
-    LoginView,
-    accept_invite,
-    invite,
-    logout,
-    me,
-    me_permissions,
-    register,
-)
+from apps.users.views import LoginView, accept_invite, invite, logout, me, me_permissions, register
 
 urlpatterns = [
     path("register", register, name="auth-register"),

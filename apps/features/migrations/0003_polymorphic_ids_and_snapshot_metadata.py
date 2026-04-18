@@ -9,6 +9,7 @@ Changes:
 """
 
 from django.db import migrations, models
+
 import apps.features.models
 
 

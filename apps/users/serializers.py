@@ -7,21 +7,21 @@ InviteSerializer         — validate invitation request (email + role)
 AcceptInviteSerializer   — validate invite token + optional password
 """
 
-import hmac
-import hashlib
 import base64
+import hashlib
+import hmac
 import json
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
 from django.utils.text import slugify
+
 from rest_framework import serializers
 
 from apps.tenants.models import Organization, OrganizationMembership, RoleEnum
 from apps.users.models import User
-
 
 # ── Register ─────────────────────────────────────────────────────────────────
 

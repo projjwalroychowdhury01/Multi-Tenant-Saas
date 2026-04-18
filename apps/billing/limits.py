@@ -29,6 +29,7 @@ import logging
 from datetime import timedelta
 
 from django.utils import timezone
+
 from rest_framework.exceptions import PermissionDenied
 
 logger = logging.getLogger(__name__)
@@ -123,8 +124,9 @@ def get_current_usage(org, limit_type: str) -> int:
         return OrganizationMembership.objects.filter(organization=org).count()
 
     if limit_type == "api_calls_per_month":
-        from apps.billing.models import UsageRecord
         from django.utils.timezone import now
+
+        from apps.billing.models import UsageRecord
 
         start_of_month = now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         result = UsageRecord.objects.filter(

@@ -3,6 +3,7 @@ Tests for GET /billing/invoices — invoice history listing.
 """
 
 import pytest
+
 from apps.tenants.models import RoleEnum
 from tests.factories import (
     InvoiceFactory,
@@ -115,6 +116,7 @@ class TestListInvoices:
 
     def test_invoices_ordered_newest_first(self, api_client, db):
         from datetime import timedelta
+
         from django.utils import timezone
 
         org = OrganizationFactory()

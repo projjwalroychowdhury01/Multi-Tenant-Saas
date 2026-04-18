@@ -14,16 +14,12 @@ import hashlib
 import hmac
 import json
 
-import pytest
 from django.conf import settings
+
+import pytest
 from rest_framework.test import APIClient
 
-from tests.factories import (
-    InvoiceFactory,
-    OrganizationFactory,
-    PlanFactory,
-    SubscriptionFactory,
-)
+from tests.factories import InvoiceFactory, OrganizationFactory, PlanFactory, SubscriptionFactory
 
 pytestmark = pytest.mark.django_db
 

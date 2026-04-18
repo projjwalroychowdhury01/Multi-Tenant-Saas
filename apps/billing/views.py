@@ -213,8 +213,8 @@ def webhook_handler(request):
     signature-based authentication instead.
     """
     from apps.billing.webhook_validation import (
-        validate_webhook_payload_signature_and_schema,
         queue_dead_letter_event,
+        validate_webhook_payload_signature_and_schema,
     )
 
     # ── Signature Verification ─────────────────────────────────────────────

@@ -1,8 +1,10 @@
 """Usage metering integration tests."""
 
-import pytest
 from datetime import datetime, timedelta
+
 from django.utils import timezone
+
+import pytest
 from rest_framework import status
 
 from apps.billing.models import Subscription, UsageRecord

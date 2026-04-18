@@ -7,8 +7,8 @@ All tests import from here via conftest auto-discovery.
 import pytest
 from rest_framework.test import APIClient
 
-from tests.factories import MembershipFactory, OrganizationFactory, UserFactory
 from apps.tenants.models import RoleEnum
+from tests.factories import MembershipFactory, OrganizationFactory, UserFactory
 
 
 @pytest.fixture

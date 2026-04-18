@@ -1,10 +1,10 @@
 """Production settings — secure defaults, argon2, Sentry, HSTS."""
 
+import environ
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 
 from .base import *  # noqa: F401, F403
-import environ
 
 env = environ.Env()
 

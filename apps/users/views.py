@@ -15,9 +15,9 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from apps.users.serializers import (
     AcceptInviteSerializer,
@@ -26,7 +26,6 @@ from apps.users.serializers import (
     UserSerializer,
 )
 from apps.users.tokens import CustomTokenObtainPairSerializer
-
 
 # ── Register ─────────────────────────────────────────────────────────────────
 

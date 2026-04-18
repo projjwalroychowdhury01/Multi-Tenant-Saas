@@ -13,11 +13,12 @@ Covers:
 - 100 % usage fires critical alert task
 """
 
-import pytest
 from datetime import timedelta
 from unittest.mock import call, patch
 
 from django.utils import timezone
+
+import pytest
 
 from apps.billing.limits import (
     GRACE_PERIOD_DAYS,
@@ -29,6 +30,7 @@ from apps.billing.limits import (
     get_plan_limit,
     is_feature_enabled,
 )
+from apps.tenants.models import RoleEnum
 from tests.factories import (
     MembershipFactory,
     OrganizationFactory,
@@ -36,7 +38,6 @@ from tests.factories import (
     SubscriptionFactory,
     UserFactory,
 )
-from apps.tenants.models import RoleEnum
 
 pytestmark = pytest.mark.django_db
 

@@ -2,11 +2,7 @@
 
 from django.urls import path
 
-from apps.audit_logs.views import (
-    list_audit_logs,
-    get_audit_log,
-    export_audit_logs,
-)
+from apps.audit_logs.views import export_audit_logs, get_audit_log, list_audit_logs
 
 app_name = "audit_logs"
 

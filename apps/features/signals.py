@@ -16,8 +16,9 @@ from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django.utils import timezone
 
-from apps.core.mixins import VersionedMixin, SoftDeleteMixin
+from apps.core.mixins import SoftDeleteMixin, VersionedMixin
 from apps.tenants.context import get_current_org
+
 from .cache import VersionedCacheNamespace
 from .models import ResourceSnapshot
 from .tasks import create_resource_snapshot_async
@@ -59,8 +60,9 @@ def _extract_model_data(instance: Any) -> dict:
 
 def _get_audit_context() -> dict:
     """Extract current audit context (actor_id, request_id, org_id)."""
-    from django.http import HttpRequest
     from threading import local
+
+    from django.http import HttpRequest
 
     # Try to get from thread-local storage (set by middleware)
     try:

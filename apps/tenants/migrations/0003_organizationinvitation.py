@@ -1,6 +1,7 @@
 # Generated migration for Phase 3: OrganizationInvitation model
 
 import uuid
+
 import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models

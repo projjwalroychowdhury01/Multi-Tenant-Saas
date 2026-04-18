@@ -5,6 +5,7 @@ Tests for subscription lifecycle:
 """
 
 import pytest
+
 from apps.tenants.models import RoleEnum
 from tests.factories import (
     MembershipFactory,

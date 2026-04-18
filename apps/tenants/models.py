@@ -17,7 +17,6 @@ from django.utils.text import slugify
 from apps.core.mixins import SoftDeleteMixin, TimeStampedModel
 from apps.tenants.managers import TenantManager
 
-
 # ── Role Hierarchy ─────────────────────────────────────────────────────────────
 
 

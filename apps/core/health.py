@@ -4,6 +4,7 @@ Health check endpoint for monitoring DB and Redis connectivity.
 
 from django.core.cache import cache
 from django.db import connection
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response

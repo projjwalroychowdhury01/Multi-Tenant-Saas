@@ -49,7 +49,6 @@ from apps.tenants.models import (
 )
 from tests.factories import MembershipFactory, OrganizationFactory, UserFactory
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 

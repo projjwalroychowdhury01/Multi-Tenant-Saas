@@ -7,7 +7,6 @@ import logging
 from apps.tenants.context import get_current_org
 from apps.users.models import User
 
-
 logger = logging.getLogger(__name__)
 
 

@@ -32,9 +32,8 @@ import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from tests.factories import MembershipFactory, OrganizationFactory, UserFactory
 from apps.tenants.models import RoleEnum
-
+from tests.factories import MembershipFactory, OrganizationFactory, UserFactory
 
 # Helper roles to iterate over for parametrize
 ALL_ROLES = [
@@ -285,9 +284,11 @@ class TestUsageSummaryMatrix:
         client = _make_client_for_role(role, org)
 
         # Setup subscription for the org
-        from apps.billing.models import Subscription, Plan
         from datetime import timedelta
+
         from django.utils import timezone
+
+        from apps.billing.models import Plan, Subscription
 
         plan = Plan.objects.create(
             name="Test Plan", slug=f"test-{role}", limits={"api_calls_per_month": 1000}

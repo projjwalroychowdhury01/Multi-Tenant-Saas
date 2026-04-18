@@ -174,9 +174,9 @@ class MockBillingService(BillingService):
         """
         from apps.billing.models import WebhookEvent, WebhookEventStatus
         from apps.billing.webhook_validation import (
-            validate_webhook_event,
-            queue_dead_letter_event,
             WebhookValidationError,
+            queue_dead_letter_event,
+            validate_webhook_event,
         )
 
         if event_type not in self.SUPPORTED_EVENTS:

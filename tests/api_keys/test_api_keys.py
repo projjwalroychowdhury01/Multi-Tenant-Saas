@@ -19,13 +19,13 @@ Security invariants tested
   - MEMBER cannot read keys of other members (api_keys:manage scope)
 """
 
-import pytest
 from django.utils import timezone
+
+import pytest
 
 from apps.api_keys.models import ApiKey
 from apps.tenants.models import RoleEnum
 from tests.factories import ApiKeyFactory, MembershipFactory, OrganizationFactory, UserFactory
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

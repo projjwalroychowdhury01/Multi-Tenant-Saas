@@ -13,16 +13,18 @@ import hmac
 import json
 import uuid
 from datetime import timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-import pytest
 from django.conf import settings
 from django.core.cache import cache
 from django.test import RequestFactory, TestCase
 from django.utils import timezone
-from rest_framework import status
-from rest_framework.test import APITestCase, APIClient
 
+import pytest
+from rest_framework import status
+from rest_framework.test import APIClient, APITestCase
+
+from apps.billing.events import PlanLimitEventEmitter
 from apps.billing.idempotency import (
     IdempotencyManager,
     compute_request_hash,
@@ -43,14 +45,12 @@ from apps.billing.models import (
 )
 from apps.billing.services import MockBillingService, verify_webhook_signature
 from apps.billing.webhook_validation import (
-    validate_webhook_event,
     WebhookValidationError,
     queue_dead_letter_event,
+    validate_webhook_event,
 )
-from apps.billing.events import PlanLimitEventEmitter
 from apps.tenants.models import Organization
 from tests.factories import OrganizationFactory
-
 
 # ── Idempotency Tests ──────────────────────────────────────────────────────────
 

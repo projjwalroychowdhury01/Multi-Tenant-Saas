@@ -3,9 +3,10 @@ Django base settings for Multi-Tenant SaaS backend.
 All environment-specific settings live in development.py / production.py.
 """
 
-import environ
 from datetime import timedelta
 from pathlib import Path
+
+import environ
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).resolve().parent.parent.parent

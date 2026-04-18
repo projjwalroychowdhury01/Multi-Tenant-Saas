@@ -31,8 +31,8 @@ import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from tests.factories import MembershipFactory, OrganizationFactory, UserFactory
 from apps.tenants.models import OrganizationInvitation, RoleEnum
+from tests.factories import MembershipFactory, OrganizationFactory, UserFactory
 
 
 @pytest.mark.django_db

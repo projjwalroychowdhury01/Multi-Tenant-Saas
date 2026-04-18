@@ -2,9 +2,10 @@ import hashlib
 import json
 from decimal import Decimal
 
-import pytest
 from django.core.cache import cache
 from django.test import Client
+
+import pytest
 from rest_framework import status
 
 from apps.billing.models import Plan
@@ -227,9 +228,10 @@ class TestResourceSnapshot:
 
     def test_snapshot_history_retrieval(self):
         """GET /snapshots/history/ retrieves all snapshots for a resource."""
-        from tests.factories import MembershipFactory
         from rest_framework.test import APIClient
         from rest_framework_simplejwt.tokens import AccessToken
+
+        from tests.factories import MembershipFactory
 
         membership = MembershipFactory()
         user = membership.user
@@ -398,9 +400,10 @@ class TestSnapshotRestoreEndpoint:
 
     def test_restore_endpoint_initiates_task(self):
         """POST /snapshots/{id}/restore/ initiates restoration."""
-        from tests.factories import MembershipFactory
         from rest_framework.test import APIClient
         from rest_framework_simplejwt.tokens import AccessToken
+
+        from tests.factories import MembershipFactory
 
         membership = MembershipFactory()
         user = membership.user
@@ -432,9 +435,10 @@ class TestSnapshotRestoreEndpoint:
 
     def test_restore_to_version_endpoint(self):
         """POST /snapshots/restore_to_version/ restores specific version."""
-        from tests.factories import MembershipFactory
         from rest_framework.test import APIClient
         from rest_framework_simplejwt.tokens import AccessToken
+
+        from tests.factories import MembershipFactory
 
         membership = MembershipFactory()
         user = membership.user
@@ -473,9 +477,10 @@ class TestSnapshotRestoreEndpoint:
 
     def test_compare_versions_endpoint(self):
         """GET /snapshots/{id}/compare_versions/ computes diff."""
-        from tests.factories import MembershipFactory
         from rest_framework.test import APIClient
         from rest_framework_simplejwt.tokens import AccessToken
+
+        from tests.factories import MembershipFactory
 
         membership = MembershipFactory()
         user = membership.user
@@ -521,8 +526,8 @@ class TestSnapshotSignals:
 
     def test_snapshot_created_on_versioned_model_update(self):
         """Signal creates snapshot when VersionedMixin model is saved."""
-        from tests.factories import MembershipFactory
         from apps.core.mixins import VersionedMixin
+        from tests.factories import MembershipFactory
 
         membership = MembershipFactory()
         user = membership.user

@@ -14,7 +14,6 @@ from django.utils import timezone
 
 from apps.core.mixins import TimeStampedModel
 
-
 # ── Plan ───────────────────────────────────────────────────────────────────────
 
 

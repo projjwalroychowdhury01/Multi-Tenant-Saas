@@ -1,11 +1,12 @@
 """Root URL configuration."""
 
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import include, path
+
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
-from apps.tenants.views import PublicInvitationView
 from apps.core.health import health_check
+from apps.tenants.views import PublicInvitationView
 
 urlpatterns = [
     path("admin/", admin.site.urls),

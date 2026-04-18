@@ -9,15 +9,17 @@ Tests that the custom DRF authentication class:
   - Constant-time comparison prevents timing attacks (structural test)
 """
 
-import pytest
-from django.utils import timezone
 from datetime import timedelta
+
+from django.utils import timezone
+
+import pytest
 from rest_framework.test import APIRequestFactory
 
 from apps.api_keys.authentication import ApiKeyAuthentication
 from apps.api_keys.models import ApiKey
-from tests.factories import ApiKeyFactory, MembershipFactory, OrganizationFactory, UserFactory
 from apps.tenants.models import RoleEnum
+from tests.factories import ApiKeyFactory, MembershipFactory, OrganizationFactory, UserFactory
 
 
 @pytest.fixture
@@ -88,8 +90,8 @@ class TestApiKeyAuthenticationClass:
 
     def _make_request(self, factory, token=None):
         """Build a DRF-wrapped GET request with optional Authorization header."""
-        from rest_framework.request import Request
         from rest_framework.parsers import JSONParser
+        from rest_framework.request import Request
 
         if token:
             django_req = factory.get("/", HTTP_AUTHORIZATION=f"Bearer {token}")
@@ -158,8 +160,8 @@ class TestApiKeyAuthenticationClass:
     def test_malformed_header_returns_none(self, factory):
         """Header with wrong scheme ('Token' instead of 'Bearer') is ignored."""
         django_req = factory.get("/", HTTP_AUTHORIZATION="Token sk_live_abc123")
-        from rest_framework.request import Request
         from rest_framework.parsers import JSONParser
+        from rest_framework.request import Request
 
         request = Request(django_req, parsers=[JSONParser()])
         result = ApiKeyAuthentication().authenticate(request)

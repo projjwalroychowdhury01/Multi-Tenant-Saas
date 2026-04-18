@@ -4,10 +4,10 @@ Initial migration for the api_keys app.
 Creates the ApiKey table with all required fields, indexes, and FK references.
 """
 
-import django.db.models.deletion
-import django.utils.timezone
 import uuid
 
+import django.db.models.deletion
+import django.utils.timezone
 from django.conf import settings
 from django.db import migrations, models
 

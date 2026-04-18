@@ -9,32 +9,31 @@ Tests validate:
   - require_permission decorator logic (mocked request)
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.test import APIRequestFactory
 
+from apps.rbac.permissions import HasTenantPermission, require_permission
 from apps.rbac.registry import (
+    ANALYTICS_READ,
+    API_KEYS_MANAGE,
+    API_KEYS_READ,
+    BILLING_MANAGE,
+    BILLING_READ,
     PERMISSION_REGISTRY,
+    SETTINGS_MANAGE,
+    SETTINGS_READ,
+    USERS_INVITE,
+    USERS_MANAGE,
+    USERS_READ,
     get_role_permissions,
     has_permission,
     is_at_least,
     role_rank,
-    USERS_READ,
-    USERS_INVITE,
-    USERS_MANAGE,
-    API_KEYS_READ,
-    API_KEYS_MANAGE,
-    SETTINGS_READ,
-    SETTINGS_MANAGE,
-    BILLING_READ,
-    BILLING_MANAGE,
-    ANALYTICS_READ,
 )
-from apps.rbac.permissions import HasTenantPermission, require_permission
 from apps.tenants.models import RoleEnum
-
 
 # ── Registry unit tests ────────────────────────────────────────────────────────
 

@@ -27,9 +27,10 @@ def send_invoice_email(self, invoice_id: str) -> None:
     task runs asynchronously in the Celery worker.
     """
     try:
-        from apps.billing.models import Invoice
-        from django.core.mail import send_mail
         from django.conf import settings
+        from django.core.mail import send_mail
+
+        from apps.billing.models import Invoice
 
         invoice = Invoice.objects.select_related(
             "subscription__organization",
@@ -120,7 +121,8 @@ def _flush_usage_key(redis_client, key: str) -> None:
     Key format: ``usage:{org_id}:{metric}:{YYYY-MM-DD-HH}``
     """
     import uuid
-    from datetime import datetime, timezone as dt_tz
+    from datetime import datetime
+    from datetime import timezone as dt_tz
 
     from apps.billing.models import UsageRecord
 
@@ -358,9 +360,10 @@ def send_plan_limit_alert_email(self, event_id: str) -> None:
     Args:
         event_id: UUID of PlanLimitEvent
     """
-    from apps.billing.models import PlanLimitEvent, PlanLimitEventType
-    from django.core.mail import send_mail
     from django.conf import settings
+    from django.core.mail import send_mail
+
+    from apps.billing.models import PlanLimitEvent, PlanLimitEventType
 
     try:
         event = PlanLimitEvent.objects.select_related(
@@ -428,8 +431,10 @@ def cleanup_dead_letter_events(self, max_age_days: int = 30) -> None:
     Args:
         max_age_days: Delete events older than this many days (default 30)
     """
-    from django.utils import timezone
     from datetime import timedelta
+
+    from django.utils import timezone
+
     from apps.billing.models import WebhookEvent, WebhookEventStatus
 
     try:

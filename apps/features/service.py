@@ -10,9 +10,8 @@ from django.db import IntegrityError
 
 from apps.tenants.context import get_current_org
 
-from .cache import VersionedCacheNamespace, CacheKeyBuilder
+from .cache import CacheKeyBuilder, VersionedCacheNamespace
 from .models import FeatureFlag
-
 
 # Initialize versioned cache namespace for feature flags
 _feature_cache = VersionedCacheNamespace("feature", ttl=60)

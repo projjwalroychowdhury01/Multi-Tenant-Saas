@@ -10,7 +10,6 @@ use get_or_create to avoid duplicate rows.
 
 from django.db import migrations
 
-
 FREE_PLAN = {
     "name": "Free",
     "slug": "free",

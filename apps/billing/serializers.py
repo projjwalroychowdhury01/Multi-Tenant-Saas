@@ -12,7 +12,6 @@ from rest_framework import serializers
 
 from apps.billing.models import Invoice, Plan, Subscription
 
-
 # ── Plan ───────────────────────────────────────────────────────────────────────
 
 

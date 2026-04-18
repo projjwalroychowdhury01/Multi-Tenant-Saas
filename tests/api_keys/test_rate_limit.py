@@ -13,8 +13,9 @@ we test:
 import time
 from unittest.mock import MagicMock, patch
 
-import pytest
 from django.test import override_settings
+
+import pytest
 
 from apps.core.rate_limit import (
     PLAN_LIMITS,
@@ -23,7 +24,6 @@ from apps.core.rate_limit import (
     _window_start,
     check_rate_limit,
 )
-
 
 # ── Pure logic tests (no Redis required) ──────────────────────────────────────
 

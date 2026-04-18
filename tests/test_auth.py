@@ -84,7 +84,8 @@ class TestLogin:
         assert "refresh" in res.data
 
         # Decode and verify claims are present
-        import base64, json
+        import base64
+        import json
 
         access = res.data["access"]
         payload_b64 = access.split(".")[1]

@@ -10,10 +10,11 @@ Handles:
 import logging
 from typing import Any, Optional, Union
 
-from celery import shared_task
 from django.apps import apps
 from django.core.serializers.json import DjangoJSONEncoder
 from django.utils import timezone
+
+from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
