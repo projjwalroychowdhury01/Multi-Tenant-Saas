@@ -45,9 +45,7 @@ def get_usage_summary(request):
         )
 
     try:
-        subscription = Subscription.objects.select_related("plan").get(
-            organization=org
-        )
+        subscription = Subscription.objects.select_related("plan").get(organization=org)
     except Subscription.DoesNotExist:
         return Response(
             {"error": "No active subscription found.", "code": "no_subscription"},
@@ -67,16 +65,12 @@ def get_usage_summary(request):
         period_end = period_start + timedelta(days=30)
 
     # ── Sum usage for the current period ──────────────────────────────────────
-    usage_sum = (
-        UsageRecord.objects
-        .filter(
-            organization=org,
-            metric_name="api_calls",
-            period_start__gte=period_start,
-            period_start__lt=period_end,
-        )
-        .aggregate(total=Sum("quantity"))
-    )
+    usage_sum = UsageRecord.objects.filter(
+        organization=org,
+        metric_name="api_calls",
+        period_start__gte=period_start,
+        period_start__lt=period_end,
+    ).aggregate(total=Sum("quantity"))
     current_usage = usage_sum["total"] or 0
 
     # ── Extract plan limit ────────────────────────────────────────────────────

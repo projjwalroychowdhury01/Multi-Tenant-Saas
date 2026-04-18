@@ -40,7 +40,7 @@ class FeatureFlagEvaluationSerializer(serializers.Serializer):
 class ResourceSnapshotSerializer(serializers.ModelSerializer):
     """
     Serializer for ResourceSnapshot with polymorphic ID field support.
-    
+
     Handles UUID and integer ID types transparently.
     """
 

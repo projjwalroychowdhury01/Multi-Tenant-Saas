@@ -11,85 +11,181 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('tenants', '0004_initial'),
+        ("tenants", "0004_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Plan',
+            name="Plan",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('name', models.CharField(max_length=100)),
-                ('slug', models.SlugField(unique=True)),
-                ('price_monthly', models.DecimalField(decimal_places=2, default=0, max_digits=10)),
-                ('limits', models.JSONField(default=dict, help_text='Hard limits: members_count, api_calls_per_month, storage_mb')),
-                ('features', models.JSONField(default=dict, help_text='Feature flags enabled on this plan: audit_logs, feature_flags, sso')),
-                ('is_active', models.BooleanField(db_index=True, default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4, editable=False, primary_key=True, serialize=False
+                    ),
+                ),
+                ("name", models.CharField(max_length=100)),
+                ("slug", models.SlugField(unique=True)),
+                ("price_monthly", models.DecimalField(decimal_places=2, default=0, max_digits=10)),
+                (
+                    "limits",
+                    models.JSONField(
+                        default=dict,
+                        help_text="Hard limits: members_count, api_calls_per_month, storage_mb",
+                    ),
+                ),
+                (
+                    "features",
+                    models.JSONField(
+                        default=dict,
+                        help_text="Feature flags enabled on this plan: audit_logs, feature_flags, sso",
+                    ),
+                ),
+                ("is_active", models.BooleanField(db_index=True, default=True)),
             ],
             options={
-                'verbose_name': 'Plan',
-                'verbose_name_plural': 'Plans',
-                'ordering': ['price_monthly'],
+                "verbose_name": "Plan",
+                "verbose_name_plural": "Plans",
+                "ordering": ["price_monthly"],
             },
         ),
         migrations.CreateModel(
-            name='Subscription',
+            name="Subscription",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('status', models.CharField(choices=[('active', 'Active'), ('past_due', 'Past Due'), ('canceled', 'Canceled')], db_index=True, default='active', max_length=20)),
-                ('current_period_start', models.DateTimeField(default=django.utils.timezone.now)),
-                ('current_period_end', models.DateTimeField(blank=True, null=True)),
-                ('cancel_at', models.DateTimeField(blank=True, null=True)),
-                ('grace_period_end', models.DateTimeField(blank=True, null=True)),
-                ('organization', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='subscription', to='tenants.organization')),
-                ('plan', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='subscriptions', to='billing.plan')),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4, editable=False, primary_key=True, serialize=False
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("active", "Active"),
+                            ("past_due", "Past Due"),
+                            ("canceled", "Canceled"),
+                        ],
+                        db_index=True,
+                        default="active",
+                        max_length=20,
+                    ),
+                ),
+                ("current_period_start", models.DateTimeField(default=django.utils.timezone.now)),
+                ("current_period_end", models.DateTimeField(blank=True, null=True)),
+                ("cancel_at", models.DateTimeField(blank=True, null=True)),
+                ("grace_period_end", models.DateTimeField(blank=True, null=True)),
+                (
+                    "organization",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="subscription",
+                        to="tenants.organization",
+                    ),
+                ),
+                (
+                    "plan",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="subscriptions",
+                        to="billing.plan",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Subscription',
-                'verbose_name_plural': 'Subscriptions',
+                "verbose_name": "Subscription",
+                "verbose_name_plural": "Subscriptions",
             },
         ),
         migrations.CreateModel(
-            name='Invoice',
+            name="Invoice",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('amount_cents', models.PositiveIntegerField(help_text='Amount in cents (USD)')),
-                ('status', models.CharField(choices=[('open', 'Open'), ('paid', 'Paid'), ('failed', 'Failed'), ('void', 'Void')], db_index=True, default='open', max_length=20)),
-                ('stripe_invoice_id', models.CharField(help_text='Stripe invoice ID or mock reference', max_length=255, unique=True)),
-                ('period_start', models.DateTimeField()),
-                ('period_end', models.DateTimeField()),
-                ('paid_at', models.DateTimeField(blank=True, null=True)),
-                ('subscription', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='invoices', to='billing.subscription')),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4, editable=False, primary_key=True, serialize=False
+                    ),
+                ),
+                ("amount_cents", models.PositiveIntegerField(help_text="Amount in cents (USD)")),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("open", "Open"),
+                            ("paid", "Paid"),
+                            ("failed", "Failed"),
+                            ("void", "Void"),
+                        ],
+                        db_index=True,
+                        default="open",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "stripe_invoice_id",
+                    models.CharField(
+                        help_text="Stripe invoice ID or mock reference", max_length=255, unique=True
+                    ),
+                ),
+                ("period_start", models.DateTimeField()),
+                ("period_end", models.DateTimeField()),
+                ("paid_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "subscription",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="invoices",
+                        to="billing.subscription",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Invoice',
-                'verbose_name_plural': 'Invoices',
-                'ordering': ['-created_at'],
+                "verbose_name": "Invoice",
+                "verbose_name_plural": "Invoices",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='UsageRecord',
+            name="UsageRecord",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('metric_name', models.CharField(db_index=True, max_length=100)),
-                ('quantity', models.PositiveBigIntegerField(default=0)),
-                ('period_start', models.DateTimeField(db_index=True)),
-                ('period_end', models.DateTimeField()),
-                ('organization', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='usage_records', to='tenants.organization')),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4, editable=False, primary_key=True, serialize=False
+                    ),
+                ),
+                ("metric_name", models.CharField(db_index=True, max_length=100)),
+                ("quantity", models.PositiveBigIntegerField(default=0)),
+                ("period_start", models.DateTimeField(db_index=True)),
+                ("period_end", models.DateTimeField()),
+                (
+                    "organization",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="usage_records",
+                        to="tenants.organization",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Usage Record',
-                'verbose_name_plural': 'Usage Records',
-                'ordering': ['-period_start'],
-                'indexes': [models.Index(fields=['organization', 'metric_name', 'period_start'], name='billing_usa_organiz_d30804_idx'), models.Index(fields=['period_start'], name='billing_usa_period__8371f8_idx')],
+                "verbose_name": "Usage Record",
+                "verbose_name_plural": "Usage Records",
+                "ordering": ["-period_start"],
+                "indexes": [
+                    models.Index(
+                        fields=["organization", "metric_name", "period_start"],
+                        name="billing_usa_organiz_d30804_idx",
+                    ),
+                    models.Index(fields=["period_start"], name="billing_usa_period__8371f8_idx"),
+                ],
             },
         ),
     ]

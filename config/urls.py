@@ -17,7 +17,9 @@ urlpatterns = [
     path("orgs/", include("apps.tenants.urls")),
     # Global invitation token endpoints (unauthenticated GET, authenticated POST)
     path("invitations/<str:token>/", PublicInvitationView.as_view(), name="invitation-resolve"),
-    path("invitations/<str:token>/accept/", PublicInvitationView.as_view(), name="invitation-accept"),
+    path(
+        "invitations/<str:token>/accept/", PublicInvitationView.as_view(), name="invitation-accept"
+    ),
     # API Key management
     path("api-keys/", include("apps.api_keys.urls")),
     # Billing

@@ -70,7 +70,13 @@ class UsageRecordAdmin(admin.ModelAdmin):
 
 @admin.register(IdempotencyKey)
 class IdempotencyKeyAdmin(admin.ModelAdmin):
-    list_display = ["organization", "idempotency_key", "operation_type", "response_status", "created_at"]
+    list_display = [
+        "organization",
+        "idempotency_key",
+        "operation_type",
+        "response_status",
+        "created_at",
+    ]
     list_filter = ["operation_type", "response_status"]
     search_fields = ["organization__name", "idempotency_key"]
     readonly_fields = ["id", "created_at", "updated_at"]
@@ -96,24 +102,39 @@ class WebhookEventAdmin(admin.ModelAdmin):
         return False
 
     fieldsets = (
-        ("Event Metadata", {
-            "fields": ("id", "event_id", "event_type", "organization"),
-        }),
-        ("Processing", {
-            "fields": ("status", "processed_at", "retry_count", "error_message"),
-        }),
-        ("Dead Letter", {
-            "fields": ("dead_letter_reason",),
-            "classes": ("collapse",),
-        }),
-        ("Payload", {
-            "fields": ("payload", "signature"),
-            "classes": ("collapse",),
-        }),
-        ("Timestamps", {
-            "fields": ("created_at", "updated_at"),
-            "classes": ("collapse",),
-        }),
+        (
+            "Event Metadata",
+            {
+                "fields": ("id", "event_id", "event_type", "organization"),
+            },
+        ),
+        (
+            "Processing",
+            {
+                "fields": ("status", "processed_at", "retry_count", "error_message"),
+            },
+        ),
+        (
+            "Dead Letter",
+            {
+                "fields": ("dead_letter_reason",),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "Payload",
+            {
+                "fields": ("payload", "signature"),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "Timestamps",
+            {
+                "fields": ("created_at", "updated_at"),
+                "classes": ("collapse",),
+            },
+        ),
     )
 
 

@@ -27,6 +27,7 @@ from apps.core.rate_limit import (
 
 # ── Pure logic tests (no Redis required) ──────────────────────────────────────
 
+
 class TestRateLimitLogic:
     def test_get_limit_free(self):
         assert _get_limit("FREE") == 100
@@ -138,6 +139,7 @@ class TestCheckRateLimitWithMockRedis:
 
 # ── Middleware integration tests ───────────────────────────────────────────────
 
+
 class TestRateLimitMiddleware:
     """
     Test the RateLimitMiddleware via the Django test client.
@@ -151,7 +153,12 @@ class TestRateLimitMiddleware:
     def test_rate_limit_headers_present_when_enabled(self, auth_client):
         """Headers should be injected when middleware is active."""
         allowed_result = RateLimitResult(
-            allowed=True, limit=100, remaining=99, reset_at=9999999999, retry_after=0, current_count=1
+            allowed=True,
+            limit=100,
+            remaining=99,
+            reset_at=9999999999,
+            retry_after=0,
+            current_count=1,
         )
         with patch("apps.core.rate_limit.check_rate_limit", return_value=allowed_result):
             res = auth_client.get("/auth/me")
@@ -166,7 +173,12 @@ class TestRateLimitMiddleware:
     def test_429_returned_when_limit_exceeded(self, auth_client):
         """Middleware must block the request and return 429 with Retry-After."""
         denied_result = RateLimitResult(
-            allowed=False, limit=100, remaining=0, reset_at=9999999999, retry_after=45, current_count=101
+            allowed=False,
+            limit=100,
+            remaining=0,
+            reset_at=9999999999,
+            retry_after=45,
+            current_count=101,
         )
         with patch("apps.core.rate_limit.check_rate_limit", return_value=denied_result):
             res = auth_client.get("/auth/me")

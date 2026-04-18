@@ -62,7 +62,9 @@ def send_invoice_email(self, invoice_id: str) -> None:
             )
             logger.info("send_invoice_email: sent for invoice %s", invoice_id)
         except Exception as mail_exc:
-            logger.warning("send_invoice_email: mail failed for invoice %s: %s", invoice_id, mail_exc)
+            logger.warning(
+                "send_invoice_email: mail failed for invoice %s: %s", invoice_id, mail_exc
+            )
 
     except Exception as exc:
         logger.error("send_invoice_email failed for invoice %s: %s", invoice_id, exc)
@@ -139,13 +141,13 @@ def _flush_usage_key(redis_client, key: str) -> None:
             return
 
         _, org_id, metric_name, hour_bucket = parts
-        period_start = datetime.strptime(hour_bucket, "%Y-%m-%d-%H").replace(
-            tzinfo=dt_tz.utc
-        )
+        period_start = datetime.strptime(hour_bucket, "%Y-%m-%d-%H").replace(tzinfo=dt_tz.utc)
         from datetime import timedelta
+
         period_end = period_start + timedelta(hours=1)
 
         from apps.tenants.models import Organization
+
         try:
             org = Organization.all_objects.get(id=org_id)
         except Organization.DoesNotExist:
@@ -161,7 +163,10 @@ def _flush_usage_key(redis_client, key: str) -> None:
         )
         logger.debug(
             "_flush_usage_key: %s → org=%s metric=%s qty=%d",
-            key, org_id, metric_name, quantity,
+            key,
+            org_id,
+            metric_name,
+            quantity,
         )
 
     except Exception as exc:
@@ -273,18 +278,25 @@ def notify_usage_threshold(
             )
             logger.info(
                 "notify_usage_threshold: sent %s alert for org %s %s (%d/%d)",
-                severity, org_id, limit_type, usage, limit,
+                severity,
+                org_id,
+                limit_type,
+                usage,
+                limit,
             )
         except Exception as mail_exc:
             logger.warning(
                 "notify_usage_threshold: mail send failed for org %s: %s",
-                org_id, mail_exc,
+                org_id,
+                mail_exc,
             )
 
     except Exception as exc:
         logger.error(
             "notify_usage_threshold failed for org %s %s: %s",
-            org_id, limit_type, exc,
+            org_id,
+            limit_type,
+            exc,
         )
         raise self.retry(exc=exc)
 
@@ -296,11 +308,11 @@ def notify_usage_threshold(
 def process_webhook_event_async(self, event_id: str) -> None:
     """
     Asynchronously process a webhook event (retry-safe).
-    
+
     Used for:
     - Dead-letter event retry
     - High-volume event processing
-    
+
     Args:
         event_id: UUID of WebhookEvent to process
     """
@@ -340,9 +352,9 @@ def process_webhook_event_async(self, event_id: str) -> None:
 def send_plan_limit_alert_email(self, event_id: str) -> None:
     """
     Send email notification for plan limit events.
-    
+
     Called by PlanLimitEventEmitter when a limit event is emitted.
-    
+
     Args:
         event_id: UUID of PlanLimitEvent
     """
@@ -393,7 +405,9 @@ def send_plan_limit_alert_email(self, event_id: str) -> None:
             )
             logger.info(f"send_plan_limit_alert_email: sent for event {event_id}")
         except Exception as mail_exc:
-            logger.warning(f"send_plan_limit_alert_email: mail failed for event {event_id}: {mail_exc}")
+            logger.warning(
+                f"send_plan_limit_alert_email: mail failed for event {event_id}: {mail_exc}"
+            )
 
     except Exception as exc:
         logger.error(f"send_plan_limit_alert_email failed for event {event_id}: {exc}")
@@ -407,10 +421,10 @@ def send_plan_limit_alert_email(self, event_id: str) -> None:
 def cleanup_dead_letter_events(self, max_age_days: int = 30) -> None:
     """
     Periodically clean up old dead-letter events.
-    
+
     Dead-letter events are kept for manual review, but older ones can be archived
     or deleted based on retention policy.
-    
+
     Args:
         max_age_days: Delete events older than this many days (default 30)
     """
@@ -435,14 +449,14 @@ def cleanup_dead_letter_events(self, max_age_days: int = 30) -> None:
 def cleanup_old_idempotency_keys(self) -> None:
     """
     Periodically clean up expired idempotency keys.
-    
+
     Idempotency keys are retained for 24 hours. This task runs nightly
     to clean up older ones.
     """
     try:
         from apps.billing.idempotency import IdempotencyManager
+
         count = IdempotencyManager.cleanup_expired()
         logger.info(f"cleanup_old_idempotency_keys: deleted {count} expired keys")
     except Exception as exc:
         logger.error(f"cleanup_old_idempotency_keys failed: {exc}")
-

@@ -64,7 +64,7 @@ class FeatureNotAvailable(PermissionDenied):
 GRACE_PERIOD_DAYS = 7
 
 # Threshold fractions at which alert notifications are dispatched.
-_ALERT_THRESHOLD_WARNING = 0.80   # 80 % → warning email / webhook
+_ALERT_THRESHOLD_WARNING = 0.80  # 80 % → warning email / webhook
 _ALERT_THRESHOLD_CRITICAL = 1.00  # 100 % → critical alert + grace period opens
 
 
@@ -80,13 +80,12 @@ def get_active_subscription(org):
     from apps.billing.models import Subscription, SubscriptionStatus
 
     try:
-        return (
-            Subscription.objects
-            .select_related("plan")
-            .get(organization=org, status__in=[
+        return Subscription.objects.select_related("plan").get(
+            organization=org,
+            status__in=[
                 SubscriptionStatus.ACTIVE,
                 SubscriptionStatus.PAST_DUE,
-            ])
+            ],
         )
     except Subscription.DoesNotExist:
         return None
@@ -120,21 +119,19 @@ def get_current_usage(org, limit_type: str) -> int:
     """
     if limit_type == "members_count":
         from apps.tenants.models import OrganizationMembership
+
         return OrganizationMembership.objects.filter(organization=org).count()
 
     if limit_type == "api_calls_per_month":
         from apps.billing.models import UsageRecord
         from django.utils.timezone import now
+
         start_of_month = now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        result = (
-            UsageRecord.objects
-            .filter(
-                organization=org,
-                metric_name="api_calls",
-                period_start__gte=start_of_month,
-            )
-            .aggregate(total=__import__("django.db.models", fromlist=["Sum"]).Sum("quantity"))
-        )
+        result = UsageRecord.objects.filter(
+            organization=org,
+            metric_name="api_calls",
+            period_start__gte=start_of_month,
+        ).aggregate(total=__import__("django.db.models", fromlist=["Sum"]).Sum("quantity"))
         return result["total"] or 0
 
     if limit_type == "storage_mb":
@@ -185,7 +182,11 @@ def check_plan_limit(org, limit_type: str) -> None:
         sub.save(update_fields=["grace_period_end", "updated_at"])
         logger.warning(
             "check_plan_limit: org %s exceeded %s (%d/%d). Grace period until %s.",
-            org.id, limit_type, usage, limit, sub.grace_period_end,
+            org.id,
+            limit_type,
+            usage,
+            limit,
+            sub.grace_period_end,
         )
         _fire_threshold_alert(org, limit_type, usage, limit, severity="critical")
         return  # allow this request — grace period just started
@@ -193,7 +194,11 @@ def check_plan_limit(org, limit_type: str) -> None:
     if sub.is_in_grace_period:
         logger.warning(
             "check_plan_limit: org %s over %s (%d/%d), grace ends %s.",
-            org.id, limit_type, usage, limit, sub.grace_period_end,
+            org.id,
+            limit_type,
+            usage,
+            limit,
+            sub.grace_period_end,
         )
         return  # still within grace window
 
@@ -259,7 +264,8 @@ def _clear_grace_period_if_set(org, limit_type: str) -> None:
         sub.save(update_fields=["grace_period_end", "updated_at"])
         logger.info(
             "check_plan_limit: org %s back under %s limit — grace period cleared.",
-            org.id, limit_type,
+            org.id,
+            limit_type,
         )
 
 
@@ -293,6 +299,7 @@ def _fire_threshold_alert(
     """
     try:
         from apps.billing.tasks import notify_usage_threshold
+
         notify_usage_threshold.delay(
             org_id=str(org.id),
             limit_type=limit_type,
@@ -303,6 +310,7 @@ def _fire_threshold_alert(
     except Exception as exc:
         logger.warning(
             "_fire_threshold_alert: could not enqueue alert for org %s %s: %s",
-            org.id, limit_type, exc,
+            org.id,
+            limit_type,
+            exc,
         )
-

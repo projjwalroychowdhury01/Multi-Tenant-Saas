@@ -10,7 +10,12 @@ Use these instead of raw model.objects.create() calls so that:
 import factory
 from factory.django import DjangoModelFactory
 
-from apps.tenants.models import Organization, OrganizationInvitation, OrganizationMembership, RoleEnum
+from apps.tenants.models import (
+    Organization,
+    OrganizationInvitation,
+    OrganizationMembership,
+    RoleEnum,
+)
 from apps.users.models import User
 
 
@@ -134,16 +139,20 @@ class PlanFactory(DjangoModelFactory):
     name = factory.Sequence(lambda n: f"Plan {n}")
     slug = factory.LazyAttribute(lambda o: o.name.lower().replace(" ", "-"))
     price_monthly = "0.00"
-    limits = factory.LazyFunction(lambda: {
-        "members_count": 5,
-        "api_calls_per_month": 10_000,
-        "storage_mb": 512,
-    })
-    features = factory.LazyFunction(lambda: {
-        "audit_logs": False,
-        "feature_flags": False,
-        "sso": False,
-    })
+    limits = factory.LazyFunction(
+        lambda: {
+            "members_count": 5,
+            "api_calls_per_month": 10_000,
+            "storage_mb": 512,
+        }
+    )
+    features = factory.LazyFunction(
+        lambda: {
+            "audit_logs": False,
+            "feature_flags": False,
+            "sso": False,
+        }
+    )
     is_active = True
 
 
@@ -187,4 +196,3 @@ class InvoiceFactory(DjangoModelFactory):
     paid_at = factory.LazyFunction(
         lambda: __import__("django.utils.timezone", fromlist=["now"]).now()
     )
-

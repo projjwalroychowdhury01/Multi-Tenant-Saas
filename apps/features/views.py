@@ -2,7 +2,12 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
+from rest_framework.status import (
+    HTTP_200_OK,
+    HTTP_201_CREATED,
+    HTTP_400_BAD_REQUEST,
+    HTTP_404_NOT_FOUND,
+)
 
 from apps.rbac.permissions import HasTenantPermission
 
@@ -40,7 +45,7 @@ class FeatureFlagViewSet(viewsets.ModelViewSet):
     def my_features(self, request):
         """
         GET /features/my_features/
-        
+
         Returns all feature flags evaluated for the current organization.
         Format: {"feature_key": true/false, ...}
         """
@@ -54,7 +59,7 @@ class FeatureFlagViewSet(viewsets.ModelViewSet):
 class ResourceSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for viewing resource snapshots and version history.
-    
+
     Provides:
     - List and retrieve snapshots
     - Full version history retrieval
@@ -72,7 +77,7 @@ class ResourceSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
     def history(self, request):
         """
         GET /snapshots/history/?resource_type=User&resource_id=123
-        
+
         Get full version history for a specific resource.
         """
         resource_type = request.query_params.get("resource_type")
@@ -96,13 +101,13 @@ class ResourceSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
     def restore(self, request, pk=None):
         """
         POST /snapshots/{id}/restore/
-        
+
         Restore a resource from a snapshot. This will apply the snapshot data
         back to the resource and create a new snapshot recording the restoration.
-        
+
         Query parameters:
         - apply_changes (bool, default=true): Whether to apply snapshot data as update
-        
+
         Returns:
             Restoration status and details
         """
@@ -149,14 +154,14 @@ class ResourceSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
     def restore_to_version(self, request):
         """
         POST /snapshots/restore_to_version/
-        
+
         Restore a resource to a specific version by query parameters.
-        
+
         Query parameters:
         - resource_type (required): Model class name
         - resource_id (required): Resource primary key
         - version (required): Version number to restore to
-        
+
         Returns:
             Restoration status
         """
@@ -166,9 +171,7 @@ class ResourceSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
 
         if not all([resource_type, resource_id, version]):
             return Response(
-                {
-                    "error": "resource_type, resource_id, and version are required"
-                },
+                {"error": "resource_type, resource_id, and version are required"},
                 status=HTTP_400_BAD_REQUEST,
             )
 
@@ -181,9 +184,7 @@ class ResourceSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
             )
         except (ValueError, ResourceSnapshot.DoesNotExist):
             return Response(
-                {
-                    "error": f"Snapshot not found for {resource_type}#{resource_id} v{version}"
-                },
+                {"error": f"Snapshot not found for {resource_type}#{resource_id} v{version}"},
                 status=HTTP_404_NOT_FOUND,
             )
 
@@ -195,12 +196,12 @@ class ResourceSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
     def compare_versions(self, request, pk=None):
         """
         GET /snapshots/{id}/compare_versions/?other_version=5
-        
+
         Compare current snapshot with another version.
-        
+
         Query parameters:
         - other_version: Version number to compare against
-        
+
         Returns:
             Diff showing what changed between versions
         """
@@ -222,9 +223,7 @@ class ResourceSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
             )
         except (ValueError, ResourceSnapshot.DoesNotExist):
             return Response(
-                {
-                    "error": f"Snapshot v{other_version} not found"
-                },
+                {"error": f"Snapshot v{other_version} not found"},
                 status=HTTP_404_NOT_FOUND,
             )
 
@@ -246,7 +245,7 @@ class ResourceSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
     def _compute_diff(data1: dict, data2: dict) -> dict:
         """
         Compute a diff between two snapshot data dictionaries.
-        
+
         Returns:
             Dict with 'added', 'removed', 'modified' keys
         """

@@ -29,12 +29,15 @@ from tests.factories import ApiKeyFactory, MembershipFactory, OrganizationFactor
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def admin_client(api_client, org, db):
     """Authenticated client with ADMIN role."""
     user = UserFactory(password="Test1234!")
     MembershipFactory(organization=org, user=user, role=RoleEnum.ADMIN)
-    res = api_client.post("/auth/token", {"email": user.email, "password": "Test1234!"}, format="json")
+    res = api_client.post(
+        "/auth/token", {"email": user.email, "password": "Test1234!"}, format="json"
+    )
     assert res.status_code == 200
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {res.data['access']}")
     api_client.user = user
@@ -47,7 +50,9 @@ def viewer_client(api_client, org, db):
     """Authenticated client with VIEWER role."""
     user = UserFactory(password="Test1234!")
     MembershipFactory(organization=org, user=user, role=RoleEnum.VIEWER)
-    res = api_client.post("/auth/token", {"email": user.email, "password": "Test1234!"}, format="json")
+    res = api_client.post(
+        "/auth/token", {"email": user.email, "password": "Test1234!"}, format="json"
+    )
     assert res.status_code == 200
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {res.data['access']}")
     api_client.user = user
@@ -64,6 +69,7 @@ def existing_key(db, org, owner):
 
 
 # ── Create ────────────────────────────────────────────────────────────────────
+
 
 class TestApiKeyCreate:
     def test_create_returns_secret_once(self, auth_client):
@@ -85,7 +91,9 @@ class TestApiKeyCreate:
 
     def test_create_stores_prefix_not_secret(self, auth_client, org):
         """DB record must only store prefix and hash, never the plaintext."""
-        res = auth_client.post("/api-keys/", {"name": "Security Check", "env": "live"}, format="json")
+        res = auth_client.post(
+            "/api-keys/", {"name": "Security Check", "env": "live"}, format="json"
+        )
         assert res.status_code == 201
         key = ApiKey.all_objects.get(id=res.data["id"])
         # prefix is stored
@@ -123,6 +131,7 @@ class TestApiKeyCreate:
 
 # ── List ──────────────────────────────────────────────────────────────────────
 
+
 class TestApiKeyList:
     def test_list_returns_only_org_keys(self, auth_client, org, owner, db):
         """Keys from another org must not appear."""
@@ -152,6 +161,7 @@ class TestApiKeyList:
 
 # ── Detail ────────────────────────────────────────────────────────────────────
 
+
 class TestApiKeyDetail:
     def test_retrieve_masked(self, auth_client, existing_key):
         res = auth_client.get(f"/api-keys/{existing_key.id}/")
@@ -171,9 +181,12 @@ class TestApiKeyDetail:
 
 # ── Update ────────────────────────────────────────────────────────────────────
 
+
 class TestApiKeyUpdate:
     def test_patch_name(self, auth_client, existing_key):
-        res = auth_client.patch(f"/api-keys/{existing_key.id}/", {"name": "New Name"}, format="json")
+        res = auth_client.patch(
+            f"/api-keys/{existing_key.id}/", {"name": "New Name"}, format="json"
+        )
         assert res.status_code == 200
         existing_key.refresh_from_db()
         assert existing_key.name == "New Name"
@@ -192,6 +205,7 @@ class TestApiKeyUpdate:
 
 
 # ── Revoke (DELETE) ───────────────────────────────────────────────────────────
+
 
 class TestApiKeyRevoke:
     def test_delete_sets_inactive(self, auth_client, existing_key):
@@ -214,6 +228,7 @@ class TestApiKeyRevoke:
 
 # ── Rotate ────────────────────────────────────────────────────────────────────
 
+
 class TestApiKeyRotate:
     def test_rotate_returns_new_secret(self, auth_client, existing_key):
         res = auth_client.post(f"/api-keys/{existing_key.id}/rotate/")
@@ -233,6 +248,7 @@ class TestApiKeyRotate:
         assert existing_key.expires_at is not None
         # Expiry should be in the future (within 25 hours to allow test lag)
         from datetime import timedelta
+
         assert existing_key.expires_at > before
         assert existing_key.expires_at < timezone.now() + timedelta(hours=25)
 

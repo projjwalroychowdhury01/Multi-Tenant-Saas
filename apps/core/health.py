@@ -15,7 +15,7 @@ from rest_framework.status import HTTP_200_OK, HTTP_503_SERVICE_UNAVAILABLE
 def health_check(request):
     """
     GET /health
-    
+
     Returns the health status of critical services:
     - Database connectivity
     - Redis/Cache connectivity

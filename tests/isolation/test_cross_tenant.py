@@ -93,9 +93,9 @@ class TestCrossTenantIsolation:
         """
         org_a, org_b, _, _, client_a, *_ = self.setup_two_orgs()
         res = client_a.get(f"/orgs/{org_b.id}/members/")
-        assert res.status_code == status.HTTP_404_NOT_FOUND, (
-            f"Expected 404 but got {res.status_code}: {res.data}"
-        )
+        assert (
+            res.status_code == status.HTTP_404_NOT_FOUND
+        ), f"Expected 404 but got {res.status_code}: {res.data}"
 
     def test_list_members_own_org_succeeds(self):
         """Control: Client A must still be able to list Org A's members."""
@@ -116,9 +116,9 @@ class TestCrossTenantIsolation:
             {"role": RoleEnum.VIEWER},
             format="json",
         )
-        assert res.status_code == status.HTTP_404_NOT_FOUND, (
-            f"Expected 404 but got {res.status_code}: {res.data}"
-        )
+        assert (
+            res.status_code == status.HTTP_404_NOT_FOUND
+        ), f"Expected 404 but got {res.status_code}: {res.data}"
 
     def test_change_role_using_valid_org_but_foreign_user_returns_404(self):
         """
@@ -132,9 +132,9 @@ class TestCrossTenantIsolation:
             format="json",
         )
         # extra_b is NOT a member of org_a → get_object_or_404 returns 404
-        assert res.status_code == status.HTTP_404_NOT_FOUND, (
-            f"Expected 404 but got {res.status_code}: {res.data}"
-        )
+        assert (
+            res.status_code == status.HTTP_404_NOT_FOUND
+        ), f"Expected 404 but got {res.status_code}: {res.data}"
 
     # ── Remove Member ────────────────────────────────────────────────────────
 
@@ -145,9 +145,9 @@ class TestCrossTenantIsolation:
         """
         org_a, org_b, _, _, client_a, _, extra_b = self.setup_two_orgs()
         res = client_a.delete(f"/orgs/{org_b.id}/members/{extra_b.id}/")
-        assert res.status_code == status.HTTP_404_NOT_FOUND, (
-            f"Expected 404 but got {res.status_code}: {res.data}"
-        )
+        assert (
+            res.status_code == status.HTTP_404_NOT_FOUND
+        ), f"Expected 404 but got {res.status_code}: {res.data}"
 
     def test_remove_using_valid_org_but_foreign_user_returns_404(self):
         """
@@ -156,9 +156,9 @@ class TestCrossTenantIsolation:
         """
         org_a, _, _, _, client_a, _, extra_b = self.setup_two_orgs()
         res = client_a.delete(f"/orgs/{org_a.id}/members/{extra_b.id}/")
-        assert res.status_code == status.HTTP_404_NOT_FOUND, (
-            f"Expected 404 but got {res.status_code}: {res.data}"
-        )
+        assert (
+            res.status_code == status.HTTP_404_NOT_FOUND
+        ), f"Expected 404 but got {res.status_code}: {res.data}"
 
     # ── Unauthenticated ──────────────────────────────────────────────────────
 
@@ -194,9 +194,9 @@ class TestCrossTenantIsolation:
         """
         org_a, org_b, user_a, user_b, client_a, client_b, extra_b = self.setup_two_orgs()
         res = client_a.get(f"/orgs/{org_b.id}/invitations/")
-        assert res.status_code == status.HTTP_404_NOT_FOUND, (
-            f"Expected 404 but got {res.status_code}: {res.data}"
-        )
+        assert (
+            res.status_code == status.HTTP_404_NOT_FOUND
+        ), f"Expected 404 but got {res.status_code}: {res.data}"
 
     def test_cannot_create_invitation_in_foreign_org(self):
         """
@@ -208,9 +208,9 @@ class TestCrossTenantIsolation:
             {"email": "outsider@example.com", "role": RoleEnum.MEMBER},
             format="json",
         )
-        assert res.status_code == status.HTTP_404_NOT_FOUND, (
-            f"Expected 404 but got {res.status_code}: {res.data}"
-        )
+        assert (
+            res.status_code == status.HTTP_404_NOT_FOUND
+        ), f"Expected 404 but got {res.status_code}: {res.data}"
 
     def test_cannot_revoke_foreign_org_invitation(self):
         """
@@ -229,9 +229,9 @@ class TestCrossTenantIsolation:
 
         # Client A (member of Org A) tries to revoke it using Org B's ID
         res = client_a.delete(f"/orgs/{org_b.id}/invitations/{inv.id}/")
-        assert res.status_code == status.HTTP_404_NOT_FOUND, (
-            f"Expected 404 but got {res.status_code}: {res.data}"
-        )
+        assert (
+            res.status_code == status.HTTP_404_NOT_FOUND
+        ), f"Expected 404 but got {res.status_code}: {res.data}"
 
     # ── Phase 4: Billing Isolation ────────────────────────────────────────────
 
@@ -303,7 +303,6 @@ class TestCrossTenantIsolation:
             f"Expected 1 invoice for Org A but got {len(res.data)} — "
             f"possible cross-tenant bleed!"
         )
-        assert res.data[0]["amount_cents"] == 100, (
-            f"Invoice amount mismatch — cross-tenant invoice returned!"
-        )
-
+        assert (
+            res.data[0]["amount_cents"] == 100
+        ), f"Invoice amount mismatch — cross-tenant invoice returned!"

@@ -6,21 +6,21 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('tenants', '0003_organizationinvitation'),
+        ("tenants", "0003_organizationinvitation"),
     ]
 
     operations = [
         migrations.DeleteModel(
-            name='InvitationStatus',
+            name="InvitationStatus",
         ),
         migrations.RenameIndex(
-            model_name='organizationinvitation',
-            new_name='tenants_org_token_46a201_idx',
-            old_name='tenants_org_token_inv_idx',
+            model_name="organizationinvitation",
+            new_name="tenants_org_token_46a201_idx",
+            old_name="tenants_org_token_inv_idx",
         ),
         migrations.RenameIndex(
-            model_name='organizationinvitation',
-            new_name='tenants_org_organiz_a51597_idx',
-            old_name='tenants_org_email_inv_idx',
+            model_name="organizationinvitation",
+            new_name="tenants_org_organiz_a51597_idx",
+            old_name="tenants_org_email_inv_idx",
         ),
     ]

@@ -65,7 +65,9 @@ class ApiKeyAuthentication(authentication.BaseAuthentication):
         return self.keyword
 
     def authenticate(self, request):
-        auth_header = authentication.get_authorization_header(request).decode("utf-8", errors="ignore")
+        auth_header = authentication.get_authorization_header(request).decode(
+            "utf-8", errors="ignore"
+        )
 
         if not auth_header:
             return None  # Let the next auth class try
@@ -134,6 +136,7 @@ class ApiKeyAuthentication(authentication.BaseAuthentication):
         # ── Async update of last_used_at (non-blocking) ───────────────────────
         try:
             from apps.api_keys.tasks import update_api_key_last_used
+
             update_api_key_last_used.delay(str(api_key.id))
         except Exception:  # pragma: no cover — Celery not available in all envs
             logger.warning("Could not schedule last_used_at update for key %s", api_key.id)

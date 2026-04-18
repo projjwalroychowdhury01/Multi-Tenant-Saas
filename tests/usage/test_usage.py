@@ -25,9 +25,7 @@ class TestUsageSummary:
     def test_get_usage_summary_success(self, auth_client, org, db):
         """Authenticated user with billing:read permission can view usage summary."""
         # Create a subscription with a plan that has api_calls_per_month limit
-        plan = PlanFactory(
-            limits={"api_calls_per_month": 1000}
-        )
+        plan = PlanFactory(limits={"api_calls_per_month": 1000})
         now = timezone.now()
         subscription = Subscription.objects.create(
             organization=org,

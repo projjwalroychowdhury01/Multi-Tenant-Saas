@@ -50,16 +50,19 @@ class TestPermissionRegistry:
     def test_owner_has_all_permissions(self):
         """OWNER must hold every defined permission."""
         all_scopes = {
-            USERS_READ, USERS_INVITE, USERS_MANAGE,
-            API_KEYS_READ, API_KEYS_MANAGE,
-            SETTINGS_READ, SETTINGS_MANAGE,
-            BILLING_READ, BILLING_MANAGE,
+            USERS_READ,
+            USERS_INVITE,
+            USERS_MANAGE,
+            API_KEYS_READ,
+            API_KEYS_MANAGE,
+            SETTINGS_READ,
+            SETTINGS_MANAGE,
+            BILLING_READ,
+            BILLING_MANAGE,
             ANALYTICS_READ,
         }
         owner_perms = get_role_permissions(RoleEnum.OWNER)
-        assert all_scopes <= owner_perms, (
-            f"OWNER missing: {all_scopes - owner_perms}"
-        )
+        assert all_scopes <= owner_perms, f"OWNER missing: {all_scopes - owner_perms}"
 
     def test_admin_cannot_manage_billing(self):
         assert not has_permission(RoleEnum.ADMIN, BILLING_MANAGE)
@@ -221,9 +224,11 @@ class TestRequirePermissionDecorator:
 
     def _make_fn_view(self, scope: str):
         """Returns a decorated dummy view function."""
+
         @require_permission(scope)
         def dummy_view(request):
             return "ok"
+
         return dummy_view
 
     def test_owner_passes_all_scopes(self):

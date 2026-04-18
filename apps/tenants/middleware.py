@@ -66,17 +66,18 @@ def _resolve_org_from_jwt(request):
             auth_tuple = JWTAuthentication().authenticate(request)
         except (AuthenticationFailed, InvalidToken):
             return None
-            
+
         if auth_tuple is None:
             return None
-            
+
         _, token = auth_tuple
         org_id = token.payload.get("org_id")
-        
+
         if not org_id:
             return None
 
         from apps.tenants.models import Organization
+
         return Organization.all_objects.filter(id=org_id, is_active=True).first()
     except Exception:
         return None

@@ -117,11 +117,11 @@ class UserSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         org = getattr(request, "org", None) if request else None
         if org:
-            membership = OrganizationMembership.objects.filter(
-                user=obj, organization=org
-            ).first()
+            membership = OrganizationMembership.objects.filter(user=obj, organization=org).first()
         else:
-            membership = OrganizationMembership.objects.filter(user=obj).order_by("joined_at").first()
+            membership = (
+                OrganizationMembership.objects.filter(user=obj).order_by("joined_at").first()
+            )
 
         self.context[cache_key] = membership
         return membership
@@ -205,9 +205,7 @@ def _validate_invite_token(token: str) -> dict:
     # 2. Check single-use via Redis
     cache_key = f"invite:{sig}"
     if not cache.get(cache_key):
-        raise serializers.ValidationError(
-            "Invitation token has expired or has already been used."
-        )
+        raise serializers.ValidationError("Invitation token has expired or has already been used.")
 
     # 3. Decode payload
     try:

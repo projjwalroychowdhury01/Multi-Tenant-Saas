@@ -51,9 +51,7 @@ class SentryContextMiddleware:
             user_id = request.user.id
 
         # Extract request_id from middleware (if RequestIdMiddleware is installed)
-        request_id = getattr(request, "id", None) or request.META.get(
-            "X-Request-ID", ""
-        )
+        request_id = getattr(request, "id", None) or request.META.get("X-Request-ID", "")
 
         # Set Sentry tags and breadcrumb
         with sentry_sdk.push_scope() as scope:

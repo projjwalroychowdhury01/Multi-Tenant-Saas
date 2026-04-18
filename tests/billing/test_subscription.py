@@ -145,15 +145,14 @@ class TestSubscribe:
 
     def test_subscribe_creates_invoice(self, api_client, db):
         from apps.billing.models import Invoice
+
         org = OrganizationFactory()
         PlanFactory(slug="invoice-sub-plan", name="Invoice Plan", price_monthly="49.00")
         user = UserFactory(password="TestPass123!")
         client = make_auth_client(api_client, user, org, RoleEnum.OWNER)
 
         client.post(self.URL, {"plan_slug": "invoice-sub-plan"}, format="json")
-        assert Invoice.objects.filter(
-            subscription__organization=org
-        ).count() == 1
+        assert Invoice.objects.filter(subscription__organization=org).count() == 1
 
     def test_unauthenticated_cannot_subscribe(self, client, db):
         PlanFactory(slug="unauth-sub-plan", name="Unauth Plan")

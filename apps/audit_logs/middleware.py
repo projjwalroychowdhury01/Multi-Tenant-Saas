@@ -63,7 +63,7 @@ class AuditLogMiddleware:
         # Read and cache the body before Django consumes it in the view
         if request.method in _MUTABLE_METHODS:
             try:
-                body = request.body   # bytes; caches internally in Django
+                body = request.body  # bytes; caches internally in Django
             except Exception:
                 body = b""
             request._raw_body = body

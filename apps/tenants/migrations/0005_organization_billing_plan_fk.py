@@ -36,8 +36,7 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(
                 blank=True,
                 help_text=(
-                    "Active plan tier. Managed via the Subscription model; "
-                    "do not set directly."
+                    "Active plan tier. Managed via the Subscription model; " "do not set directly."
                 ),
                 null=True,
                 on_delete=django.db.models.deletion.SET_NULL,

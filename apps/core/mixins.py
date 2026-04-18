@@ -107,9 +107,7 @@ class VersionedMixin(models.Model):
     def save(self, *args, **kwargs):
         if self.pk:
             # Atomic increment — avoids race conditions on concurrent saves
-            type(self).all_objects.filter(pk=self.pk).update(
-                version=models.F("version") + 1
-            )
+            type(self).all_objects.filter(pk=self.pk).update(version=models.F("version") + 1)
             self.refresh_from_db(fields=["version"])
         super().save(*args, **kwargs)
 

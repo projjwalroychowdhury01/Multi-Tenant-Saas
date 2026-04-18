@@ -92,7 +92,7 @@ PERMISSION_REGISTRY: dict[str, frozenset[str]] = {
             API_KEYS_MANAGE,
             SETTINGS_READ,
             SETTINGS_MANAGE,
-            BILLING_READ,     # ADMINs can see billing but cannot change it
+            BILLING_READ,  # ADMINs can see billing but cannot change it
             ANALYTICS_READ,
             AUDIT_LOGS_READ,  # ADMINs can read audit logs
         ]

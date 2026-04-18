@@ -65,7 +65,8 @@ def _get_audit_context() -> dict:
     # Try to get from thread-local storage (set by middleware)
     try:
         from apps.audit_logs.middleware import _request_context
-        context = _request_context.value if hasattr(_request_context, 'value') else {}
+
+        context = _request_context.value if hasattr(_request_context, "value") else {}
     except (ImportError, AttributeError):
         context = {}
 
@@ -85,12 +86,12 @@ def _create_snapshot_from_instance(
 ) -> ResourceSnapshot:
     """
     Create a ResourceSnapshot from a model instance.
-    
+
     Args:
         instance: Model instance to snapshot
         change_reason: Reason for the change
         metadata: Additional metadata to store
-    
+
     Returns:
         Created ResourceSnapshot instance
     """
@@ -102,9 +103,7 @@ def _create_snapshot_from_instance(
     # Get org_id from the model if available
     org_id = audit_context["org_id"]
     if org_id is None:
-        org_id = getattr(instance, "organization_id", None) or getattr(
-            instance, "org_id", None
-        )
+        org_id = getattr(instance, "organization_id", None) or getattr(instance, "org_id", None)
 
     # Get version from VersionedMixin if available
     version = getattr(instance, "version", 1)
@@ -143,7 +142,7 @@ def _create_snapshot_from_instance(
 def on_versioned_model_save(sender, instance, created, **kwargs):
     """
     Signal handler: Create snapshot after any VersionedMixin model is saved.
-    
+
     Uses async task to avoid blocking the save response.
     """
     # Only listen to VersionedMixin models
@@ -179,7 +178,7 @@ def on_versioned_model_save(sender, instance, created, **kwargs):
 def on_model_delete(sender, instance, **kwargs):
     """
     Signal handler: Capture deletion snapshots for SoftDeleteMixin models.
-    
+
     Creates a snapshot with change_reason='deleted' to preserve the final state.
     """
     # Only listen to SoftDeleteMixin models (soft deletes)
@@ -209,11 +208,11 @@ def invalidate_snapshot_cache(
 ) -> int:
     """
     Invalidate snapshot cache entries.
-    
+
     Args:
         resource_type: Resource type to invalidate
         organization_id: Organization to invalidate
-    
+
     Returns:
         Number of cache entries invalidated
     """

@@ -99,7 +99,9 @@ TEMPLATES = [
 
 # ── Database ────────────────────────────────────────────────────────────────────
 DATABASES = {
-    "default": env.db("DATABASE_URL", default="postgres://saas_user:saas_password@localhost:5432/saas_db")
+    "default": env.db(
+        "DATABASE_URL", default="postgres://saas_user:saas_password@localhost:5432/saas_db"
+    )
 }
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

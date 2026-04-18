@@ -32,6 +32,7 @@ IDEMPOTENCY_CACHE_TTL = 86400  # 24 hours
 
 class IdempotencyError(Exception):
     """Raised when idempotency validation fails."""
+
     pass
 
 
@@ -67,7 +68,7 @@ class IdempotencyManager:
     ) -> None:
         """
         Store the result of an operation for replay protection.
-        
+
         Args:
             org_id: Organization ID
             idempotency_key: Client-provided idempotency key
@@ -108,7 +109,7 @@ class IdempotencyManager:
     def get_result(org_id: str, idempotency_key: str) -> Optional[dict]:
         """
         Retrieve cached result of a previous operation.
-        
+
         Returns:
             Dict with 'status', 'data', 'error' if found, None otherwise.
         """
@@ -123,7 +124,7 @@ class IdempotencyManager:
     ) -> Tuple[bool, Optional[str]]:
         """
         Validate that a retry request matches the original (same body hash).
-        
+
         Returns:
             Tuple of (is_valid, error_message)
         """
@@ -152,7 +153,7 @@ class IdempotencyManager:
     def cleanup_expired() -> int:
         """
         Remove idempotency keys older than 24 hours.
-        
+
         Returns:
             Number of rows deleted
         """
@@ -167,13 +168,13 @@ class IdempotencyManager:
 def ensure_idempotency(operation_type: str):
     """
     Decorator for API views to add idempotency support.
-    
+
     Usage:
         @ensure_idempotency("subscribe")
         @api_view(["POST"])
         def subscribe(request):
             ...
-    
+
     The decorator:
     1. Extracts Idempotency-Key header
     2. Checks for prior result in cache
@@ -181,6 +182,7 @@ def ensure_idempotency(operation_type: str):
     4. If not found, allows view to execute
     5. After view completes, stores result
     """
+
     def decorator(view_func):
         def wrapper(request, *args, **kwargs):
             org = getattr(request, "org", None)
@@ -257,4 +259,5 @@ def ensure_idempotency(operation_type: str):
                 raise
 
         return wrapper
+
     return decorator

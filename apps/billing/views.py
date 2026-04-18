@@ -66,11 +66,7 @@ def get_subscription(request):
         )
 
     try:
-        subscription = (
-            Subscription.objects
-            .select_related("plan")
-            .get(organization=org)
-        )
+        subscription = Subscription.objects.select_related("plan").get(organization=org)
     except Subscription.DoesNotExist:
         return Response(
             {"error": "No active subscription found.", "code": "no_subscription"},
@@ -92,11 +88,11 @@ def subscribe(request):
 
     Requires ``billing:manage`` permission (OWNER and BILLING role only).
     Replaces any existing subscription atomically.
-    
+
     Supports Idempotency-Key header for replay protection:
     - If provided, retried requests return the same result
     - Prevents duplicate charges if request is retried
-    
+
     Example:
         POST /billing/subscribe
         Idempotency-Key: my-request-id-12345
@@ -119,11 +115,13 @@ def subscribe(request):
     idempotency_key = request.headers.get("Idempotency-Key")
     if idempotency_key:
         from apps.billing.idempotency import IdempotencyManager
-        
+
         # Check for cached result
         cached = IdempotencyManager.get_result(str(org.id), idempotency_key)
         if cached:
-            logger.info(f"Returning cached subscription result for idempotency key {idempotency_key}")
+            logger.info(
+                f"Returning cached subscription result for idempotency key {idempotency_key}"
+            )
             return Response(
                 cached["data"],
                 status=cached["status"],
@@ -141,6 +139,7 @@ def subscribe(request):
     # Store result for idempotency
     if idempotency_key:
         from apps.billing.idempotency import IdempotencyManager
+
         IdempotencyManager.store_result(
             org_id=str(org.id),
             idempotency_key=idempotency_key,
@@ -177,8 +176,7 @@ def list_invoices(request):
         return Response([], status=status.HTTP_200_OK)
 
     invoices = (
-        Invoice.objects
-        .filter(subscription=subscription)
+        Invoice.objects.filter(subscription=subscription)
         .select_related("subscription__plan")
         .order_by("-created_at")
     )
@@ -200,16 +198,16 @@ def webhook_handler(request):
     - Validates event payload schema (required/optional fields, type checking)
     - Implements replay protection via event_id deduplication
     - Routes malformed but signed events to dead-letter queue for manual review
-    
+
     Idempotency:
     - Events are deduplicated by event_id (unique constraint in DB)
     - Retried webhooks return same result (cached in DB)
-    
+
     Error Handling:
     - Invalid signature → 400 (malicious/corrupted)
     - Schema validation failure → 400 + dead-letter queue
     - Processing error → 500 + retry by webhook provider
-    
+
     This endpoint is intentionally unauthenticated (AllowAny) because
     real webhook handlers never carry user session tokens — they use
     signature-based authentication instead.
@@ -239,6 +237,7 @@ def webhook_handler(request):
     # ── Payload Parsing ────────────────────────────────────────────────────
     try:
         import json
+
         payload = json.loads(payload_bytes)
     except json.JSONDecodeError as exc:
         logger.error(f"webhook_handler: invalid JSON: {exc}")

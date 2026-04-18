@@ -227,15 +227,15 @@ class UsageRecord(TimeStampedModel):
 class IdempotencyKey(TimeStampedModel):
     """
     Stores results of idempotent API operations for replay protection.
-    
+
     When a client sends a request with an Idempotency-Key header:
     1. Check if key exists in cache/DB
     2. If yes, return cached result (avoiding duplicate work)
     3. If no, proceed with operation and store result
-    
+
     Results are retained for 24 hours to prevent accidental replays.
     """
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(
         "tenants.Organization",
@@ -293,14 +293,14 @@ class WebhookEventStatus(models.TextChoices):
 class WebhookEvent(TimeStampedModel):
     """
     Stores incoming webhook events for replay protection and audit.
-    
+
     Provides:
     - Idempotent webhook delivery (replay protection via event_id)
     - Audit trail of all webhook events (processed or failed)
     - Dead-letter queue for malformed but signed events
     - Retry mechanism for failed events
     """
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     event_id = models.CharField(
         max_length=255,
@@ -324,7 +324,7 @@ class WebhookEvent(TimeStampedModel):
         max_length=255,
         help_text="HMAC signature for verification",
     )
-    
+
     # Processing metadata
     organization = models.ForeignKey(
         "tenants.Organization",
@@ -337,7 +337,7 @@ class WebhookEvent(TimeStampedModel):
     processed_at = models.DateTimeField(null=True, blank=True)
     error_message = models.TextField(null=True, blank=True)
     retry_count = models.PositiveIntegerField(default=0)
-    
+
     # Dead-letter info
     dead_letter_reason = models.TextField(
         null=True,
@@ -373,14 +373,14 @@ class PlanLimitEventType(models.TextChoices):
 class PlanLimitEvent(TimeStampedModel):
     """
     Event stream for plan limit violations and grace periods.
-    
+
     Provides:
     - Event log of limit violations for audit trail
     - UX notifications (email, in-app alerts)
     - Webhook forwarding to org's custom webhooks
     - Analytics on usage patterns
     """
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(
         "tenants.Organization",
@@ -398,20 +398,18 @@ class PlanLimitEvent(TimeStampedModel):
         help_text="Which limit was affected (members_count, api_calls_per_month, etc.)",
         db_index=True,
     )
-    
+
     # Current usage metrics
     current_usage = models.PositiveBigIntegerField()
     limit_value = models.PositiveBigIntegerField()
-    usage_percentage = models.PositiveSmallIntegerField(
-        help_text="Usage as percentage (0-100+)"
-    )
-    
+    usage_percentage = models.PositiveSmallIntegerField(help_text="Usage as percentage (0-100+)")
+
     # Context
     metadata = models.JSONField(
         default=dict,
         help_text="Additional context (plan name, period dates, etc.)",
     )
-    
+
     # Notification state
     email_sent = models.BooleanField(default=False)
     webhook_sent = models.BooleanField(default=False)

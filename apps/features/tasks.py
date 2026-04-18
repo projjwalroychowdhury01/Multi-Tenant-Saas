@@ -33,7 +33,7 @@ def create_resource_snapshot_async(
 ) -> int:
     """
     Async task to create a resource snapshot.
-    
+
     Args:
         resource_type: Model class name
         resource_id: Primary key of the resource
@@ -43,7 +43,7 @@ def create_resource_snapshot_async(
         actor_id: User ID who triggered the change
         request_id: Request ID for correlation
         org_id: Organization ID (tenant)
-    
+
     Returns:
         Created snapshot ID
     """
@@ -69,9 +69,7 @@ def create_resource_snapshot_async(
         try:
             instance = model_class.objects.get(pk=resource_id)
         except model_class.DoesNotExist:
-            logger.warning(
-                f"{resource_type}#{resource_id} not found - creating minimal snapshot"
-            )
+            logger.warning(f"{resource_type}#{resource_id} not found - creating minimal snapshot")
             instance = None
 
         # Build model data
@@ -94,9 +92,7 @@ def create_resource_snapshot_async(
 
         # Infer org_id if not provided
         if org_id is None and instance:
-            org_id = getattr(instance, "organization_id", None) or getattr(
-                instance, "org_id", None
-            )
+            org_id = getattr(instance, "organization_id", None) or getattr(instance, "org_id", None)
 
         # Build metadata
         snapshot_meta = metadata or {}
@@ -150,11 +146,11 @@ def restore_resource_snapshot(
 ) -> dict:
     """
     Async task to restore a resource from a snapshot.
-    
+
     Args:
         snapshot_id: ResourceSnapshot ID to restore from
         restore_changes: Whether to apply the snapshot data as an update
-    
+
     Returns:
         Restore result dict with status and details
     """
@@ -169,9 +165,7 @@ def restore_resource_snapshot(
         except LookupError:
             for app_config in apps.get_app_configs():
                 try:
-                    model_class = apps.get_model(
-                        app_config.name, snapshot.resource_type
-                    )
+                    model_class = apps.get_model(app_config.name, snapshot.resource_type)
                     break
                 except LookupError:
                     continue
@@ -201,9 +195,7 @@ def restore_resource_snapshot(
                         setattr(instance, field_name, value)
                         updated_fields.append(field_name)
                     except (TypeError, ValueError):
-                        logger.warning(
-                            f"Could not restore field {field_name} to {value}"
-                        )
+                        logger.warning(f"Could not restore field {field_name} to {value}")
 
             # Save without triggering new snapshot
             instance.save(update_fields=updated_fields)
@@ -230,10 +222,10 @@ def restore_resource_snapshot(
 def cleanup_old_snapshots(days_old: int = 90) -> dict:
     """
     Cleanup old snapshots beyond retention period.
-    
+
     Args:
         days_old: Number of days to retain
-    
+
     Returns:
         Cleanup result with count
     """

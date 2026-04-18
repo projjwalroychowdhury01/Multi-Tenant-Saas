@@ -17,7 +17,7 @@ from django.core.cache import cache
 class VersionedCacheNamespace:
     """
     Versioned cache namespace manager for robust cache invalidation.
-    
+
     Provides:
     - Hierarchical cache key patterns: ns:version:entity:scope:key
     - Version-based invalidation (invalidate all keys for a version)
@@ -28,11 +28,11 @@ class VersionedCacheNamespace:
     # Cache keys for tracking versions and indices
     NAMESPACE_VERSION_KEY = "cache:ns:{namespace}:version"
     INDEX_KEY = "cache:ns:{namespace}:index:{level}"
-    
+
     def __init__(self, namespace: str = "feature", ttl: int = 3600):
         """
         Initialize a versioned cache namespace.
-        
+
         Args:
             namespace: Namespace identifier (e.g., 'feature', 'snapshot')
             ttl: Default time-to-live for cache entries (seconds)
@@ -45,11 +45,11 @@ class VersionedCacheNamespace:
         """Ensure namespace version exists, initialize if needed."""
         version_key = self.NAMESPACE_VERSION_KEY.format(namespace=self.namespace)
         version = cache.get(version_key)
-        
+
         if version is None:
             version = 1
             cache.set(version_key, version, timeout=None)  # No expiration for version
-        
+
         return version
 
     def get_version(self) -> int:
@@ -67,33 +67,33 @@ class VersionedCacheNamespace:
     ) -> str:
         """
         Build a versioned cache key.
-        
+
         Format: cache:ns:{namespace}:{version}:{entity}:{scope}:{key}
-        
+
         Args:
             entity: Entity type (e.g., 'flag', 'snapshot')
             key: Cache key identifier
             org_id: Tenant identifier for scope
             resource_id: Resource identifier for scope
             version: Explicit version (auto-fetched if None)
-        
+
         Returns:
             Fully qualified versioned cache key
         """
         if version is None:
             version = self.get_version()
-        
+
         parts = [f"cache:ns:{self.namespace}:{version}:{entity}"]
-        
+
         # Build scope from org_id and resource_id
         if org_id is not None:
             parts.append(f"org:{org_id}")
-        
+
         if resource_id is not None:
             parts.append(f"res:{resource_id}")
-        
+
         parts.append(key)
-        
+
         return ":".join(parts)
 
     def get(self, entity: str, key: str, **scope) -> Optional[Any]:
@@ -108,11 +108,11 @@ class VersionedCacheNamespace:
         value: Any,
         ttl: Optional[int] = None,
         track_index: bool = True,
-        **scope
+        **scope,
     ) -> str:
         """
         Set value in versioned cache.
-        
+
         Args:
             entity: Entity type
             key: Cache key identifier
@@ -120,16 +120,16 @@ class VersionedCacheNamespace:
             ttl: Override default TTL
             track_index: Whether to track this key for bulk invalidation
             **scope: Scope parameters (org_id, resource_id)
-        
+
         Returns:
             Full cache key
         """
         cache_key = self.build_key(entity, key, **scope)
         cache.set(cache_key, value, timeout=ttl or self.ttl)
-        
+
         if track_index:
             self._track_key(entity, cache_key, **scope)
-        
+
         return cache_key
 
     def delete(self, entity: str, key: str, **scope) -> None:
@@ -146,16 +146,12 @@ class VersionedCacheNamespace:
     ) -> None:
         """Track cache key in index for bulk invalidation."""
         # Track at entity level
-        entity_index = self.INDEX_KEY.format(
-            namespace=self.namespace, level=f"entity:{entity}"
-        )
+        entity_index = self.INDEX_KEY.format(namespace=self.namespace, level=f"entity:{entity}")
         cache.set(entity_index, {cache_key}, timeout=None)
-        
+
         # Track at org level if scoped
         if org_id is not None:
-            org_index = self.INDEX_KEY.format(
-                namespace=self.namespace, level=f"org:{org_id}"
-            )
+            org_index = self.INDEX_KEY.format(namespace=self.namespace, level=f"org:{org_id}")
             existing = cache.get(org_index, set())
             existing.add(cache_key)
             cache.set(org_index, existing, timeout=None)
@@ -163,49 +159,43 @@ class VersionedCacheNamespace:
     def invalidate_entity(self, entity: str) -> int:
         """
         Invalidate all cache entries for an entity type.
-        
+
         Returns:
             Number of keys invalidated
         """
-        entity_index = self.INDEX_KEY.format(
-            namespace=self.namespace, level=f"entity:{entity}"
-        )
+        entity_index = self.INDEX_KEY.format(namespace=self.namespace, level=f"entity:{entity}")
         keys = cache.get(entity_index, set())
-        
+
         count = 0
         for key in keys:
             cache.delete(key)
             count += 1
-        
+
         cache.delete(entity_index)
         return count
 
     def invalidate_org(self, org_id: Union[str, int]) -> int:
         """
         Invalidate all cache entries for an organization.
-        
+
         Returns:
             Number of keys invalidated
         """
-        org_index = self.INDEX_KEY.format(
-            namespace=self.namespace, level=f"org:{org_id}"
-        )
+        org_index = self.INDEX_KEY.format(namespace=self.namespace, level=f"org:{org_id}")
         keys = cache.get(org_index, set())
-        
+
         count = 0
         for key in keys:
             cache.delete(key)
             count += 1
-        
+
         cache.delete(org_index)
         return count
 
-    def invalidate_resource(
-        self, entity: str, resource_id: Union[str, int]
-    ) -> int:
+    def invalidate_resource(self, entity: str, resource_id: Union[str, int]) -> int:
         """
         Invalidate all cache entries for a specific resource.
-        
+
         Returns:
             Number of keys invalidated
         """
@@ -213,12 +203,12 @@ class VersionedCacheNamespace:
             namespace=self.namespace, level=f"resource:{resource_id}"
         )
         keys = cache.get(resource_index, set())
-        
+
         count = 0
         for key in keys:
             cache.delete(key)
             count += 1
-        
+
         cache.delete(resource_index)
         return count
 

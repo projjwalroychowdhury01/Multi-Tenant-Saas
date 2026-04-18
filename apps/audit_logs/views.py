@@ -27,12 +27,7 @@ logger = logging.getLogger(__name__)
 
 def _base_queryset(org):
     """Return AuditLog entries scoped to *org*, most recent first."""
-    return (
-        AuditLog.objects
-        .filter(org=org)
-        .select_related("actor", "org")
-        .order_by("-created_at")
-    )
+    return AuditLog.objects.filter(org=org).select_related("actor", "org").order_by("-created_at")
 
 
 def _apply_filters(qs, params):
@@ -84,16 +79,18 @@ def list_audit_logs(request: Request) -> Response:
 
     total = qs.count()
     offset = (page - 1) * page_size
-    entries = qs[offset:offset + page_size]
+    entries = qs[offset : offset + page_size]
 
     serializer = AuditLogSerializer(entries, many=True)
-    return Response({
-        "count": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": -(-total // page_size),  # ceiling division
-        "results": serializer.data,
-    })
+    return Response(
+        {
+            "count": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": -(-total // page_size),  # ceiling division
+            "results": serializer.data,
+        }
+    )
 
 
 @api_view(["GET"])
@@ -131,29 +128,39 @@ def export_audit_logs(request: Request) -> Response:
 
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow([
-        "id", "created_at", "actor_email", "actor_id",
-        "action", "resource_type", "resource_id",
-        "ip_address", "user_agent", "request_id", "diff",
-    ])
+    writer.writerow(
+        [
+            "id",
+            "created_at",
+            "actor_email",
+            "actor_id",
+            "action",
+            "resource_type",
+            "resource_id",
+            "ip_address",
+            "user_agent",
+            "request_id",
+            "diff",
+        ]
+    )
 
     for entry in qs:
-        writer.writerow([
-            str(entry.id),
-            entry.created_at.isoformat(),
-            entry.actor.email if entry.actor else "",
-            str(entry.actor_id) if entry.actor_id else "",
-            entry.action,
-            entry.resource_type,
-            entry.resource_id,
-            entry.ip_address or "",
-            entry.user_agent,
-            entry.request_id,
-            str(entry.diff),
-        ])
+        writer.writerow(
+            [
+                str(entry.id),
+                entry.created_at.isoformat(),
+                entry.actor.email if entry.actor else "",
+                str(entry.actor_id) if entry.actor_id else "",
+                entry.action,
+                entry.resource_type,
+                entry.resource_id,
+                entry.ip_address or "",
+                entry.user_agent,
+                entry.request_id,
+                str(entry.diff),
+            ]
+        )
 
     response = HttpResponse(buf.getvalue(), content_type="text/csv")
-    response["Content-Disposition"] = (
-        f'attachment; filename="audit-logs-{org.slug}.csv"'
-    )
+    response["Content-Disposition"] = f'attachment; filename="audit-logs-{org.slug}.csv"'
     return response

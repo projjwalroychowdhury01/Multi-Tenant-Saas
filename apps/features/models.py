@@ -11,17 +11,17 @@ from django.utils import timezone
 class PolymorphicIDField(models.Field):
     """
     Custom field that stores either UUID or BigInteger transparently.
-    
+
     Serializes to JSON as {"type": "uuid" | "int", "value": <value>}
     Can be indexed and filtered like a normal field.
-    
+
     Usage:
         resource_id = PolymorphicIDField(help_text="UUID or integer ID")
-        
+
         # Assign either type:
         obj.resource_id = uuid.uuid4()
         obj.resource_id = 12345
-        
+
         # Query transparently:
         ResourceSnapshot.objects.filter(resource_id="some-uuid-string")
         ResourceSnapshot.objects.filter(resource_id=123)
@@ -81,7 +81,7 @@ class PolymorphicIDField(models.Field):
         """Deserialize JSON string back to UUID or int."""
         if not isinstance(value, str):
             return value
-        
+
         try:
             data = json.loads(value)
             if data.get("type") == "uuid":
@@ -90,7 +90,7 @@ class PolymorphicIDField(models.Field):
                 return data["value"]
         except (json.JSONDecodeError, ValueError, TypeError):
             pass
-        
+
         # Fallback: try UUID, then int
         try:
             return uuid.UUID(value)
@@ -109,7 +109,7 @@ class PolymorphicIDField(models.Field):
 class FeatureFlag(models.Model):
     """
     Feature flag model with plan-based defaults, per-org overrides, and rollout percentage support.
-    
+
     Evaluation logic:
     1. Check if explicitly enabled for this org in `enabled_for_orgs`
     2. Check if explicitly disabled for this org in `enabled_for_orgs`
@@ -179,7 +179,7 @@ class ResourceSnapshot(models.Model):
     """
     Immutable snapshots of resources at each version.
     Created automatically via signal handler when a VersionedMixin model is saved.
-    
+
     Supports polymorphic ID types (UUID or BigInteger) for resource_id, organization_id,
     and actor_id. This enables generic snapshots across different ID schemes.
     """
@@ -190,7 +190,7 @@ class ResourceSnapshot(models.Model):
         help_text="Model name (e.g., 'User', 'ApiKey', 'Organization')",
         db_index=True,
     )
-    
+
     # Polymorphic ID fields: support both UUID and integer IDs
     resource_id = PolymorphicIDField(
         help_text="Primary key of the resource (UUID or int)",

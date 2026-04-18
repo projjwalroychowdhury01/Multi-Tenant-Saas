@@ -49,7 +49,7 @@ class PlanLimitEventEmitter:
     ) -> PlanLimitEvent:
         """
         Emit a plan limit event.
-        
+
         Args:
             org: Organization instance
             event_type: Type of event (PlanLimitEventType choice)
@@ -57,7 +57,7 @@ class PlanLimitEventEmitter:
             current_usage: Current usage value
             limit_value: Plan limit value
             metadata: Additional context
-        
+
         Returns:
             Created PlanLimitEvent
         """
@@ -94,7 +94,7 @@ class PlanLimitEventEmitter:
     def _dispatch_notifications(event: PlanLimitEvent) -> None:
         """
         Dispatch notifications for the event.
-        
+
         Handles:
         - Email notifications
         - Webhook delivery to org's custom webhooks
@@ -143,19 +143,19 @@ class PlanLimitEventEmitter:
     ) -> Optional[PlanLimitEvent]:
         """
         Emit plan limit event only if usage crosses a threshold.
-        
+
         Thresholds:
         - 80% → warning notification
         - 100% → critical alert
         - Back below 100% → resolved event
-        
+
         Args:
             org: Organization instance
             limit_type: Which limit to check
             current_usage: Current usage
             limit_value: Plan limit
             metadata: Additional context
-        
+
         Returns:
             PlanLimitEvent if emitted, None otherwise
         """
@@ -208,8 +208,7 @@ class PlanLimitEventEmitter:
         """Get the previous usage for threshold comparison."""
         try:
             prev_event = (
-                PlanLimitEvent.objects
-                .filter(organization=org, limit_type=limit_type)
+                PlanLimitEvent.objects.filter(organization=org, limit_type=limit_type)
                 .order_by("-created_at")
                 .first()
             )
@@ -220,12 +219,14 @@ class PlanLimitEventEmitter:
         return 0
 
     @staticmethod
-    def emit_grace_period_started(org, limit_type: str, metadata: Optional[dict] = None) -> PlanLimitEvent:
+    def emit_grace_period_started(
+        org, limit_type: str, metadata: Optional[dict] = None
+    ) -> PlanLimitEvent:
         """Emit event when grace period is started."""
         from apps.billing.limits import get_plan_limit
 
         limit_value = get_plan_limit(org, limit_type) or 0
-        
+
         return PlanLimitEventEmitter.emit(
             org,
             PlanLimitEventType.GRACE_STARTED,
@@ -236,7 +237,9 @@ class PlanLimitEventEmitter:
         )
 
     @staticmethod
-    def emit_grace_period_expired(org, limit_type: str, metadata: Optional[dict] = None) -> PlanLimitEvent:
+    def emit_grace_period_expired(
+        org, limit_type: str, metadata: Optional[dict] = None
+    ) -> PlanLimitEvent:
         """Emit event when grace period expires."""
         from apps.billing.limits import get_plan_limit
 
@@ -256,27 +259,27 @@ class PlanLimitEventEmitter:
         """Get recent plan limit events for an org."""
         cutoff = timezone.now() - timedelta(hours=hours)
         return list(
-            PlanLimitEvent.objects
-            .filter(organization=org, created_at__gte=cutoff)
-            .order_by("-created_at")
+            PlanLimitEvent.objects.filter(organization=org, created_at__gte=cutoff).order_by(
+                "-created_at"
+            )
         )
 
     @staticmethod
     def get_active_limits(org) -> dict:
         """
         Get current status of all active limit violations for an org.
-        
+
         Returns:
             Dict mapping limit_type → most_recent_event
         """
         recent = PlanLimitEventEmitter.get_recent_events(org, hours=24)
-        
+
         # Group by limit_type, keep most recent
         active = {}
         for event in recent:
             if event.limit_type not in active:
                 active[event.limit_type] = event
-        
+
         return active
 
 
@@ -290,7 +293,7 @@ def emit_plan_limit_event(
 ) -> PlanLimitEvent:
     """
     Public API to emit a plan limit event.
-    
+
     Args:
         org: Organization instance
         event_type: Type of event (PlanLimitEventType choice)
@@ -298,7 +301,7 @@ def emit_plan_limit_event(
         current_usage: Current usage
         limit_value: Plan limit
         metadata: Additional context
-    
+
     Returns:
         Created PlanLimitEvent
     """
@@ -315,9 +318,9 @@ def emit_plan_limit_event(
 def get_active_plan_limit_violations(org) -> dict:
     """
     Get current active limit violations for an org.
-    
+
     Useful for UX to show warning badges, upgrade CTAs, etc.
-    
+
     Returns:
         Dict with limit violation info
     """

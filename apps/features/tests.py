@@ -76,9 +76,7 @@ class TestFeatureFlagService:
             is_active=True,
         )
 
-        result = FeatureFlagService.is_enabled(
-            org_id=org.id, flag_key="premium_feature"
-        )
+        result = FeatureFlagService.is_enabled(org_id=org.id, flag_key="premium_feature")
         assert result is True
 
     def test_is_enabled_rollout_deterministic(self):
@@ -153,7 +151,7 @@ class TestFeatureFlagViewSet:
     def test_get_my_features(self):
         """GET /features/my_features/ returns evaluated flags for current org."""
         from tests.factories import MembershipFactory
-        
+
         membership = MembershipFactory()
         user = membership.user
         org = membership.organization
@@ -170,15 +168,16 @@ class TestFeatureFlagViewSet:
         )
 
         from rest_framework.test import APIClient
-        
+
         client = APIClient()
         # Get token for user
         from rest_framework_simplejwt.tokens import AccessToken
+
         token = AccessToken()
-        token['user_id'] = user.id
-        token['org_id'] = org.id
-        token['role'] = 'MEMBER'
-        
+        token["user_id"] = user.id
+        token["org_id"] = org.id
+        token["role"] = "MEMBER"
+
         client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {str(token)}"
 
         response = client.get("/features/my_features/")
@@ -191,7 +190,7 @@ class TestFeatureFlagViewSet:
     def test_feature_flags_list_requires_auth(self):
         """GET /features/ requires authentication."""
         from rest_framework.test import APIClient
-        
+
         client = APIClient()
         response = client.get("/features/")
         # Depending on routing, may 404 or 401; both acceptable
@@ -205,7 +204,7 @@ class TestResourceSnapshot:
     def test_snapshot_created_on_versioned_model_save(self):
         """Snapshot is created when a VersionedMixin model is saved."""
         from tests.factories import MembershipFactory
-        
+
         # This test requires a signal handler to be implemented
         # For now, test that snapshots can be created and retrieved
         membership = MembershipFactory()
@@ -231,7 +230,7 @@ class TestResourceSnapshot:
         from tests.factories import MembershipFactory
         from rest_framework.test import APIClient
         from rest_framework_simplejwt.tokens import AccessToken
-        
+
         membership = MembershipFactory()
         user = membership.user
         org = membership.organization
@@ -255,15 +254,13 @@ class TestResourceSnapshot:
 
         client = APIClient()
         token = AccessToken()
-        token['user_id'] = user.id
-        token['org_id'] = org.id
-        token['role'] = 'MEMBER'
-        
+        token["user_id"] = user.id
+        token["org_id"] = org.id
+        token["role"] = "MEMBER"
+
         client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {str(token)}"
 
-        response = client.get(
-            f"/snapshots/history/?resource_type=User&resource_id={user.id}"
-        )
+        response = client.get(f"/snapshots/history/?resource_type=User&resource_id={user.id}")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -279,12 +276,12 @@ class TestVersionedCacheNamespace:
     def test_versioned_cache_build_key(self):
         """Cache keys are versioned correctly."""
         from .cache import VersionedCacheNamespace
-        
+
         cache_ns = VersionedCacheNamespace("test", ttl=60)
-        
+
         key1 = cache_ns.build_key("entity", "key1", org_id=1)
         key2 = cache_ns.build_key("entity", "key1", org_id=2)
-        
+
         assert key1 != key2
         assert "test" in key1
         assert "entity" in key1
@@ -292,12 +289,12 @@ class TestVersionedCacheNamespace:
     def test_versioned_cache_get_set(self):
         """Cache get/set operations work with versioning."""
         from .cache import VersionedCacheNamespace
-        
+
         cache_ns = VersionedCacheNamespace("test", ttl=60)
-        
+
         # Set value
         cache_ns.set("entity", "key", "value", org_id=1)
-        
+
         # Get value
         result = cache_ns.get("entity", "key", org_id=1)
         assert result == "value"
@@ -305,29 +302,29 @@ class TestVersionedCacheNamespace:
     def test_versioned_cache_invalidate_namespace(self):
         """Invalidating namespace increments version."""
         from .cache import VersionedCacheNamespace
-        
+
         cache_ns = VersionedCacheNamespace("test", ttl=60)
-        
+
         version_before = cache_ns.get_version()
         cache_ns.invalidate_namespace()
         version_after = cache_ns.get_version()
-        
+
         assert version_after > version_before
 
     def test_versioned_cache_invalidate_org(self):
         """Invalidating org clears org-scoped cache."""
         from .cache import VersionedCacheNamespace
-        
+
         cache_ns = VersionedCacheNamespace("test", ttl=60)
-        
+
         # Set values for org
         cache_ns.set("entity", "key1", "value1", org_id=1, track_index=True)
         cache_ns.set("entity", "key2", "value2", org_id=1, track_index=True)
-        
+
         # Invalidate org
         count = cache_ns.invalidate_org(1)
         assert count >= 2
-        
+
         # Values should be gone
         result = cache_ns.get("entity", "key1", org_id=1)
         assert result is None
@@ -347,7 +344,7 @@ class TestPolymorphicIDField:
             data={},
             actor_id=11111,
         )
-        
+
         fetched = ResourceSnapshot.objects.get(id=snapshot.id)
         assert fetched.resource_id == 12345
         assert fetched.organization_id == 67890
@@ -356,9 +353,9 @@ class TestPolymorphicIDField:
     def test_polymorphic_id_field_uuid(self):
         """PolymorphicIDField stores and retrieves UUIDs."""
         import uuid
-        
+
         test_uuid = uuid.uuid4()
-        
+
         snapshot = ResourceSnapshot.objects.create(
             resource_type="User",
             resource_id=test_uuid,
@@ -367,14 +364,14 @@ class TestPolymorphicIDField:
             data={},
             actor_id=uuid.uuid4(),
         )
-        
+
         fetched = ResourceSnapshot.objects.get(id=snapshot.id)
         assert fetched.resource_id == test_uuid
 
     def test_polymorphic_id_field_mixed_types(self):
         """PolymorphicIDField can mix UUID and integer in same table."""
         import uuid
-        
+
         snapshot1 = ResourceSnapshot.objects.create(
             resource_type="User",
             resource_id=12345,
@@ -382,7 +379,7 @@ class TestPolymorphicIDField:
             version=1,
             data={},
         )
-        
+
         snapshot2 = ResourceSnapshot.objects.create(
             resource_type="ApiKey",
             resource_id=uuid.uuid4(),
@@ -390,7 +387,7 @@ class TestPolymorphicIDField:
             version=1,
             data={},
         )
-        
+
         assert snapshot1.resource_id == 12345
         assert isinstance(snapshot2.resource_id, uuid.UUID)
 
@@ -404,11 +401,11 @@ class TestSnapshotRestoreEndpoint:
         from tests.factories import MembershipFactory
         from rest_framework.test import APIClient
         from rest_framework_simplejwt.tokens import AccessToken
-        
+
         membership = MembershipFactory()
         user = membership.user
         org = membership.organization
-        
+
         snapshot = ResourceSnapshot.objects.create(
             resource_type="User",
             resource_id=user.id,
@@ -417,17 +414,17 @@ class TestSnapshotRestoreEndpoint:
             data={"email": "old@example.com"},
             change_reason="created",
         )
-        
+
         client = APIClient()
         token = AccessToken()
-        token['user_id'] = user.id
-        token['org_id'] = org.id
-        token['role'] = 'ADMIN'
-        
+        token["user_id"] = user.id
+        token["org_id"] = org.id
+        token["role"] = "ADMIN"
+
         client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {str(token)}"
-        
+
         response = client.post(f"/snapshots/{snapshot.id}/restore/")
-        
+
         assert response.status_code == status.HTTP_201_CREATED
         data = response.json()
         assert data["status"] == "restoration_started"
@@ -438,11 +435,11 @@ class TestSnapshotRestoreEndpoint:
         from tests.factories import MembershipFactory
         from rest_framework.test import APIClient
         from rest_framework_simplejwt.tokens import AccessToken
-        
+
         membership = MembershipFactory()
         user = membership.user
         org = membership.organization
-        
+
         ResourceSnapshot.objects.create(
             resource_type="User",
             resource_id=user.id,
@@ -459,19 +456,19 @@ class TestSnapshotRestoreEndpoint:
             data={"email": "v2@example.com"},
             change_reason="updated",
         )
-        
+
         client = APIClient()
         token = AccessToken()
-        token['user_id'] = user.id
-        token['org_id'] = org.id
-        token['role'] = 'ADMIN'
-        
+        token["user_id"] = user.id
+        token["org_id"] = org.id
+        token["role"] = "ADMIN"
+
         client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {str(token)}"
-        
+
         response = client.post(
             f"/snapshots/restore_to_version/?resource_type=User&resource_id={user.id}&version=1"
         )
-        
+
         assert response.status_code == status.HTTP_201_CREATED
 
     def test_compare_versions_endpoint(self):
@@ -479,11 +476,11 @@ class TestSnapshotRestoreEndpoint:
         from tests.factories import MembershipFactory
         from rest_framework.test import APIClient
         from rest_framework_simplejwt.tokens import AccessToken
-        
+
         membership = MembershipFactory()
         user = membership.user
         org = membership.organization
-        
+
         snapshot1 = ResourceSnapshot.objects.create(
             resource_type="User",
             resource_id=user.id,
@@ -500,19 +497,17 @@ class TestSnapshotRestoreEndpoint:
             data={"email": "v2@example.com", "name": "User", "active": True},
             change_reason="updated",
         )
-        
+
         client = APIClient()
         token = AccessToken()
-        token['user_id'] = user.id
-        token['org_id'] = org.id
-        token['role'] = 'MEMBER'
-        
+        token["user_id"] = user.id
+        token["org_id"] = org.id
+        token["role"] = "MEMBER"
+
         client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {str(token)}"
-        
-        response = client.get(
-            f"/snapshots/{snapshot2.id}/compare_versions/?other_version=1"
-        )
-        
+
+        response = client.get(f"/snapshots/{snapshot2.id}/compare_versions/?other_version=1")
+
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert "diff" in data
@@ -528,18 +523,18 @@ class TestSnapshotSignals:
         """Signal creates snapshot when VersionedMixin model is saved."""
         from tests.factories import MembershipFactory
         from apps.core.mixins import VersionedMixin
-        
+
         membership = MembershipFactory()
         user = membership.user
-        
+
         # Assuming user is a VersionedMixin
         if not isinstance(user, VersionedMixin):
             pytest.skip("User is not VersionedMixin in this schema")
-        
+
         # Save should trigger snapshot via signal
         user.email = "updated@example.com"
         user.save()
-        
+
         # Check if snapshot was created (async, may not exist immediately)
         # This is an integration test - in practice snapshots are created async
 
@@ -555,12 +550,11 @@ class TestSnapshotSignals:
             request_id="req-123",
             change_reason="created",
         )
-        
+
         result = snapshot.to_dict()
-        
+
         assert result["resource_type"] == "User"
         assert result["resource_id"] == "12345"
         assert result["organization_id"] == "67890"
         assert result["version"] == 1
         assert result["data"]["email"] == "test@example.com"
-

@@ -78,6 +78,7 @@ def _get_request_org(request):
         return None
 
     from apps.tenants.models import Organization
+
     org = Organization.all_objects.filter(id=org_id, is_active=True).first()
     if org:
         # Cache on request so subsequent calls in the same view are free
@@ -170,7 +171,10 @@ def api_key_list_create(request):
 
     logger.info(
         "API key created: id=%s prefix=%s org=%s by=%s",
-        api_key.id, prefix, org.id, request.user.id,
+        api_key.id,
+        prefix,
+        org.id,
+        request.user.id,
     )
 
     response_data = ApiKeyListSerializer(api_key).data
@@ -234,7 +238,9 @@ def api_key_detail(request, key_id):
     key.save(update_fields=["is_active", "updated_at"])
     invalidate_api_key_cache(key.prefix)
 
-    logger.info("API key revoked: id=%s prefix=%s org=%s by=%s", key.id, key.prefix, org.id, request.user.id)
+    logger.info(
+        "API key revoked: id=%s prefix=%s org=%s by=%s", key.id, key.prefix, org.id, request.user.id
+    )
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -295,7 +301,11 @@ def api_key_rotate(request, key_id):
 
     logger.info(
         "API key rotated: old=%s new=%s org=%s by=%s overlap_until=%s",
-        old_key.id, new_key.id, org.id, request.user.id, overlap_expiry,
+        old_key.id,
+        new_key.id,
+        org.id,
+        request.user.id,
+        overlap_expiry,
     )
 
     response_data = ApiKeyListSerializer(new_key).data

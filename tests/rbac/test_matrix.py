@@ -83,12 +83,15 @@ class TestMemberListMatrix:
     """Column B — GET /orgs/<id>/members/"""
 
     # Roles that have users:read → expect 200
-    @pytest.mark.parametrize("role", [
-        RoleEnum.OWNER,
-        RoleEnum.ADMIN,
-        RoleEnum.MEMBER,
-        RoleEnum.VIEWER,
-    ])
+    @pytest.mark.parametrize(
+        "role",
+        [
+            RoleEnum.OWNER,
+            RoleEnum.ADMIN,
+            RoleEnum.MEMBER,
+            RoleEnum.VIEWER,
+        ],
+    )
     def test_allowed_roles_see_members(self, role):
         org = OrganizationFactory()
         client = _make_client_for_role(role, org)
@@ -127,11 +130,14 @@ class TestChangeRoleMatrix:
         assert res.status_code == status.HTTP_200_OK
         assert res.data["role"] == RoleEnum.VIEWER
 
-    @pytest.mark.parametrize("actor_role", [
-        RoleEnum.MEMBER,
-        RoleEnum.VIEWER,
-        RoleEnum.BILLING,
-    ])
+    @pytest.mark.parametrize(
+        "actor_role",
+        [
+            RoleEnum.MEMBER,
+            RoleEnum.VIEWER,
+            RoleEnum.BILLING,
+        ],
+    )
     def test_lower_roles_denied_role_change(self, actor_role):
         org = OrganizationFactory()
         client = _make_client_for_role(actor_role, org)
@@ -184,11 +190,14 @@ class TestRemoveMemberMatrix:
         res = client.delete(f"/orgs/{org.id}/members/{target.id}/")
         assert res.status_code == status.HTTP_204_NO_CONTENT
 
-    @pytest.mark.parametrize("actor_role", [
-        RoleEnum.MEMBER,
-        RoleEnum.VIEWER,
-        RoleEnum.BILLING,
-    ])
+    @pytest.mark.parametrize(
+        "actor_role",
+        [
+            RoleEnum.MEMBER,
+            RoleEnum.VIEWER,
+            RoleEnum.BILLING,
+        ],
+    )
     def test_lower_roles_denied_removal(self, actor_role):
         org = OrganizationFactory()
         client = _make_client_for_role(actor_role, org)
@@ -204,9 +213,10 @@ class TestRemoveMemberMatrix:
         target = self._setup_target(org, RoleEnum.MEMBER)
         # Manually upgrade target to OWNER for this guard test
         from apps.tenants.models import OrganizationMembership
-        OrganizationMembership.objects.filter(
-            organization=org, user=target
-        ).update(role=RoleEnum.OWNER)
+
+        OrganizationMembership.objects.filter(organization=org, user=target).update(
+            role=RoleEnum.OWNER
+        )
         res = client.delete(f"/orgs/{org.id}/members/{target.id}/")
         assert res.status_code == status.HTTP_403_FORBIDDEN
 
@@ -232,11 +242,14 @@ class TestAuditLogsMatrix:
         assert "results" in res.data
 
     # MEMBER, VIEWER, BILLING do not have audit_logs:read → expect 403
-    @pytest.mark.parametrize("role", [
-        RoleEnum.MEMBER,
-        RoleEnum.VIEWER,
-        RoleEnum.BILLING,
-    ])
+    @pytest.mark.parametrize(
+        "role",
+        [
+            RoleEnum.MEMBER,
+            RoleEnum.VIEWER,
+            RoleEnum.BILLING,
+        ],
+    )
     def test_lower_roles_denied_audit_logs(self, role):
         org = OrganizationFactory()
         client = _make_client_for_role(role, org)
@@ -258,25 +271,26 @@ class TestUsageSummaryMatrix:
     """GET /usage/summary/ — requires billing:read (VIEWER+)"""
 
     # OWNER, ADMIN, VIEWER, BILLING have billing:read → expect 200
-    @pytest.mark.parametrize("role", [
-        RoleEnum.OWNER,
-        RoleEnum.ADMIN,
-        RoleEnum.VIEWER,
-        RoleEnum.BILLING,
-    ])
+    @pytest.mark.parametrize(
+        "role",
+        [
+            RoleEnum.OWNER,
+            RoleEnum.ADMIN,
+            RoleEnum.VIEWER,
+            RoleEnum.BILLING,
+        ],
+    )
     def test_billing_read_roles_see_usage(self, role):
         org = OrganizationFactory()
         client = _make_client_for_role(role, org)
-        
+
         # Setup subscription for the org
         from apps.billing.models import Subscription, Plan
         from datetime import timedelta
         from django.utils import timezone
-        
+
         plan = Plan.objects.create(
-            name="Test Plan",
-            slug=f"test-{role}",
-            limits={"api_calls_per_month": 1000}
+            name="Test Plan", slug=f"test-{role}", limits={"api_calls_per_month": 1000}
         )
         now = timezone.now()
         Subscription.objects.create(
@@ -285,7 +299,7 @@ class TestUsageSummaryMatrix:
             current_period_start=now - timedelta(days=15),
             current_period_end=now + timedelta(days=15),
         )
-        
+
         res = client.get("/usage/summary/")
         assert res.status_code == status.HTTP_200_OK
         assert "current_usage" in res.data

@@ -159,16 +159,16 @@ class MockBillingService(BillingService):
         )
         return subscription
 
-    def handle_webhook(self, event_type: str, payload: dict, signature: str = "", org_id = None):
+    def handle_webhook(self, event_type: str, payload: dict, signature: str = "", org_id=None):
         """
         Handle webhook event with validation and replay protection.
-        
+
         Args:
             event_type: Type of event (payment_succeeded, etc.)
             payload: Event payload dict
             signature: HMAC signature for verification
             org_id: Organization ID (optional, extracted from payload if needed)
-        
+
         Raises:
             ValueError for unsupported events or validation failures
         """
@@ -178,7 +178,7 @@ class MockBillingService(BillingService):
             queue_dead_letter_event,
             WebhookValidationError,
         )
-        
+
         if event_type not in self.SUPPORTED_EVENTS:
             raise ValueError(f"Unsupported webhook event: {event_type!r}")
 
@@ -263,6 +263,7 @@ class MockBillingService(BillingService):
         # Fire-and-forget email — errors are caught so the webhook still succeeds
         try:
             from apps.billing.tasks import send_invoice_email
+
             send_invoice_email.delay(str(invoice.id))
         except Exception as exc:
             logger.warning("payment_succeeded: could not enqueue email task: %s", exc)
@@ -360,6 +361,7 @@ def get_billing_service() -> BillingService:
         backend = getattr(settings, "BILLING_BACKEND", None)
         if backend:
             from django.utils.module_loading import import_string
+
             _billing_service = import_string(backend)()
         else:
             _billing_service = MockBillingService()

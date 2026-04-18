@@ -24,7 +24,12 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="IdempotencyKey",
             fields=[
-                ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4, editable=False, primary_key=True, serialize=False
+                    ),
+                ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 ("idempotency_key", models.CharField(db_index=True, max_length=255)),
@@ -33,7 +38,14 @@ class Migration(migrations.Migration):
                 ("response_status", models.IntegerField()),
                 ("response_data", models.JSONField()),
                 ("error_message", models.TextField(blank=True, null=True)),
-                ("organization", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="idempotency_keys", to="tenants.organization")),
+                (
+                    "organization",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="idempotency_keys",
+                        to="tenants.organization",
+                    ),
+                ),
             ],
             options={
                 "verbose_name": "Idempotency Key",
@@ -43,44 +55,64 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name="idempotencykey",
-            constraint=models.UniqueConstraint(fields=["organization", "idempotency_key"], name="unique_org_idempotency_key"),
+            constraint=models.UniqueConstraint(
+                fields=["organization", "idempotency_key"], name="unique_org_idempotency_key"
+            ),
         ),
         migrations.AddIndex(
             model_name="idempotencykey",
-            index=models.Index(fields=["organization", "idempotency_key"], name="billing_ide_org_id_idx"),
+            index=models.Index(
+                fields=["organization", "idempotency_key"], name="billing_ide_org_id_idx"
+            ),
         ),
         migrations.AddIndex(
             model_name="idempotencykey",
             index=models.Index(fields=["created_at"], name="billing_ide_created_idx"),
         ),
-
         # ── WebhookEvent ──────────────────────────────────────────────────
         migrations.CreateModel(
             name="WebhookEvent",
             fields=[
-                ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4, editable=False, primary_key=True, serialize=False
+                    ),
+                ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 ("event_id", models.CharField(db_index=True, max_length=255, unique=True)),
                 ("event_type", models.CharField(db_index=True, max_length=100)),
-                ("status", models.CharField(
-                    choices=[
-                        ("pending", "Pending"),
-                        ("processed", "Processed"),
-                        ("failed", "Failed"),
-                        ("dead_letter", "Dead Letter"),
-                    ],
-                    db_index=True,
-                    default="pending",
-                    max_length=20,
-                )),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Pending"),
+                            ("processed", "Processed"),
+                            ("failed", "Failed"),
+                            ("dead_letter", "Dead Letter"),
+                        ],
+                        db_index=True,
+                        default="pending",
+                        max_length=20,
+                    ),
+                ),
                 ("payload", models.JSONField()),
                 ("signature", models.CharField(max_length=255)),
                 ("processed_at", models.DateTimeField(blank=True, null=True)),
                 ("error_message", models.TextField(blank=True, null=True)),
                 ("retry_count", models.PositiveIntegerField(default=0)),
                 ("dead_letter_reason", models.TextField(blank=True, null=True)),
-                ("organization", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name="webhook_events", to="tenants.organization")),
+                (
+                    "organization",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="webhook_events",
+                        to="tenants.organization",
+                    ),
+                ),
             ],
             options={
                 "verbose_name": "Webhook Event",
@@ -100,25 +132,32 @@ class Migration(migrations.Migration):
             model_name="webhookevent",
             index=models.Index(fields=["organization", "created_at"], name="billing_web_org_idx"),
         ),
-
         # ── PlanLimitEvent ────────────────────────────────────────────────
         migrations.CreateModel(
             name="PlanLimitEvent",
             fields=[
-                ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4, editable=False, primary_key=True, serialize=False
+                    ),
+                ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
-                ("event_type", models.CharField(
-                    choices=[
-                        ("limit_warning", "Limit Warning (80%)"),
-                        ("limit_critical", "Limit Critical (100%)"),
-                        ("grace_started", "Grace Period Started"),
-                        ("grace_expired", "Grace Period Expired"),
-                        ("limit_resolved", "Limit Resolved (Back Under)"),
-                    ],
-                    db_index=True,
-                    max_length=20,
-                )),
+                (
+                    "event_type",
+                    models.CharField(
+                        choices=[
+                            ("limit_warning", "Limit Warning (80%)"),
+                            ("limit_critical", "Limit Critical (100%)"),
+                            ("grace_started", "Grace Period Started"),
+                            ("grace_expired", "Grace Period Expired"),
+                            ("limit_resolved", "Limit Resolved (Back Under)"),
+                        ],
+                        db_index=True,
+                        max_length=20,
+                    ),
+                ),
                 ("limit_type", models.CharField(db_index=True, max_length=100)),
                 ("current_usage", models.PositiveBigIntegerField()),
                 ("limit_value", models.PositiveBigIntegerField()),
@@ -126,7 +165,14 @@ class Migration(migrations.Migration):
                 ("metadata", models.JSONField(default=dict)),
                 ("email_sent", models.BooleanField(default=False)),
                 ("webhook_sent", models.BooleanField(default=False)),
-                ("organization", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="plan_limit_events", to="tenants.organization")),
+                (
+                    "organization",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="plan_limit_events",
+                        to="tenants.organization",
+                    ),
+                ),
             ],
             options={
                 "verbose_name": "Plan Limit Event",
@@ -144,6 +190,8 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="planlimitevent",
-            index=models.Index(fields=["organization", "created_at"], name="billing_plan_created_idx"),
+            index=models.Index(
+                fields=["organization", "created_at"], name="billing_plan_created_idx"
+            ),
         ),
     ]

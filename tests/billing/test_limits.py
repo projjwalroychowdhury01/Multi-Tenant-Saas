@@ -115,9 +115,7 @@ class TestCheckPlanLimit:
             # Should NOT raise — grace period just opened
             check_plan_limit(org, "members_count")
             # Critical alert dispatched on first violation
-            mock_alert.assert_called_once_with(
-                org, "members_count", 3, 2, severity="critical"
-            )
+            mock_alert.assert_called_once_with(org, "members_count", 3, 2, severity="critical")
 
         sub.refresh_from_db()
         assert sub.grace_period_end is not None
@@ -201,9 +199,7 @@ class TestCheckPlanLimit:
 
         with patch("apps.billing.limits._fire_threshold_alert") as mock_alert:
             check_plan_limit(org_80, "members_count")  # 8/10 = 80 % → warning
-            mock_alert.assert_called_once_with(
-                org_80, "members_count", 8, 10, severity="warning"
-            )
+            mock_alert.assert_called_once_with(org_80, "members_count", 8, 10, severity="warning")
 
 
 class TestIsFeatureEnabled:
@@ -268,4 +264,3 @@ class TestCheckFeatureGate:
         with pytest.raises(FeatureNotAvailable) as exc_info:
             check_feature_gate(org, "sso")
         assert exc_info.value.default_code == "feature_not_available"
-

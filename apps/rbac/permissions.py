@@ -146,11 +146,7 @@ class HasTenantPermission(permissions.BasePermission):
             return False
 
         # Primary key comparison — avoids another query if obj_org is loaded
-        return (
-            obj_org.pk == org.pk
-            if not isinstance(obj_org, type(org))
-            else obj_org == org
-        )
+        return obj_org.pk == org.pk if not isinstance(obj_org, type(org)) else obj_org == org
 
 
 # ── Specialised permission subclasses ─────────────────────────────────────────
@@ -158,33 +154,38 @@ class HasTenantPermission(permissions.BasePermission):
 
 class CanReadUsers(HasTenantPermission):
     """Allows access to any role that has ``users:read``."""
+
     required_scope = "users:read"
 
 
 class CanManageUsers(HasTenantPermission):
     """Restricted to ADMIN+ roles (``users:manage``)."""
+
     required_scope = "users:manage"
 
 
 class CanInviteUsers(HasTenantPermission):
     """Restricted to ADMIN+ roles (``users:invite``)."""
+
     required_scope = "users:invite"
 
 
 class CanReadBilling(HasTenantPermission):
     """VIEWER, BILLING, ADMIN, OWNER."""
+
     required_scope = "billing:read"
 
 
 class CanManageBilling(HasTenantPermission):
     """BILLING and OWNER only (``billing:manage``)."""
+
     required_scope = "billing:manage"
 
 
 class CanReadAuditLogs(HasTenantPermission):
     """ADMIN and OWNER only (``audit_logs:read``)."""
-    required_scope = "audit_logs:read"
 
+    required_scope = "audit_logs:read"
 
 
 class IsAtLeastAdmin(permissions.BasePermission):
@@ -255,9 +256,7 @@ def require_permission(scope: str):
                     role,
                     scope,
                 )
-                raise PermissionDenied(
-                    f"Your role does not grant the '{scope}' permission."
-                )
+                raise PermissionDenied(f"Your role does not grant the '{scope}' permission.")
             return view_func(request, *args, **kwargs)
 
         return wrapped_view

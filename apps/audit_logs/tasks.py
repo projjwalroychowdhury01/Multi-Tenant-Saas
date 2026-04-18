@@ -23,24 +23,26 @@ from celery import shared_task
 logger = logging.getLogger(__name__)
 
 # Fields that must never appear in stored diff payloads
-REDACTED_FIELDS = frozenset({
-    "password",
-    "password1",
-    "password2",
-    "old_password",
-    "new_password",
-    "hashed_key",
-    "key_hash",
-    "secret",
-    "token",
-    "access_token",
-    "refresh_token",
-    "jwt",
-    "api_key",
-    "stripe_customer_id",
-    "card_number",
-    "cvv",
-})
+REDACTED_FIELDS = frozenset(
+    {
+        "password",
+        "password1",
+        "password2",
+        "old_password",
+        "new_password",
+        "hashed_key",
+        "key_hash",
+        "secret",
+        "token",
+        "access_token",
+        "refresh_token",
+        "jwt",
+        "api_key",
+        "stripe_customer_id",
+        "card_number",
+        "cvv",
+    }
+)
 
 
 def redact_sensitive(data: dict, fields: frozenset = REDACTED_FIELDS) -> dict:
@@ -60,8 +62,7 @@ def redact_sensitive(data: dict, fields: frozenset = REDACTED_FIELDS) -> dict:
             result[key] = redact_sensitive(value, fields)
         elif isinstance(value, list):
             result[key] = [
-                redact_sensitive(item, fields) if isinstance(item, dict) else item
-                for item in value
+                redact_sensitive(item, fields) if isinstance(item, dict) else item for item in value
             ]
         else:
             result[key] = value
@@ -109,12 +110,16 @@ def write_audit_log(
             resource_id=str(resource_id),
             diff=clean_diff,
             ip_address=ip_address or None,
-            user_agent=user_agent[:512],   # cap to avoid absurdly long UAs
+            user_agent=user_agent[:512],  # cap to avoid absurdly long UAs
             request_id=request_id[:64],
         )
         logger.debug(
             "audit: %s %s:%s actor=%s org=%s",
-            action, resource_type, resource_id, actor_id, org_id,
+            action,
+            resource_type,
+            resource_id,
+            actor_id,
+            org_id,
         )
     except Exception as exc:
         logger.error("write_audit_log failed: %s", exc)

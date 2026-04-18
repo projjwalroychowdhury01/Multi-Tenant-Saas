@@ -29,13 +29,13 @@ class FeatureFlagService:
     def is_enabled(org_id: int, flag_key: str) -> bool:
         """
         Evaluate whether a feature flag is enabled for a given organization.
-        
+
         Logic:
         1. Check versioned Redis cache first
         2. Check explicit org override (enabled_for_orgs)
         3. Check plan-level default
         4. Apply rollout percentage (deterministic hash)
-        
+
         Returns:
             bool: True if enabled, False otherwise
         """
@@ -49,18 +49,14 @@ class FeatureFlagService:
             flag = FeatureFlag.objects.get(key=flag_key, is_active=True)
         except FeatureFlag.DoesNotExist:
             # If flag doesn't exist, default to disabled
-            _feature_cache.set(
-                "flag", cache_key, False, org_id=org_id, track_index=True
-            )
+            _feature_cache.set("flag", cache_key, False, org_id=org_id, track_index=True)
             return False
 
         # Step 1: Check explicit org override
         org_id_str = str(org_id)
         if org_id_str in flag.enabled_for_orgs:
             result = flag.enabled_for_orgs[org_id_str]
-            _feature_cache.set(
-                "flag", cache_key, result, org_id=org_id, track_index=True
-            )
+            _feature_cache.set("flag", cache_key, result, org_id=org_id, track_index=True)
             return result
 
         # Step 2: Check plan-level default
@@ -72,21 +68,15 @@ class FeatureFlagService:
 
             if plan_name in flag.enabled_for_plans:
                 result = flag.enabled_for_plans[plan_name]
-                _feature_cache.set(
-                    "flag", cache_key, result, org_id=org_id, track_index=True
-                )
+                _feature_cache.set("flag", cache_key, result, org_id=org_id, track_index=True)
                 return result
         except Organization.DoesNotExist:
             pass
 
         # Step 3: Apply rollout percentage
         if flag.rollout_pct > 0:
-            if FeatureFlagService._is_org_in_rollout(
-                org_id, flag_key, flag.rollout_pct
-            ):
-                _feature_cache.set(
-                    "flag", cache_key, True, org_id=org_id, track_index=True
-                )
+            if FeatureFlagService._is_org_in_rollout(org_id, flag_key, flag.rollout_pct):
+                _feature_cache.set("flag", cache_key, True, org_id=org_id, track_index=True)
                 return True
 
         # Step 4: Fall back to default
@@ -116,9 +106,9 @@ class FeatureFlagService:
     def get_all_features_for_org(org_id: int) -> Dict[str, bool]:
         """
         Evaluate all active feature flags for a given organization.
-        
+
         Uses versioned cache for bulk operations.
-        
+
         Returns:
             dict: {flag_key: enabled}
         """
@@ -135,23 +125,19 @@ class FeatureFlagService:
             result[flag.key] = FeatureFlagService.is_enabled(org_id, flag.key)
 
         # Store in cache
-        _feature_cache.set(
-            "features", cache_key, result, org_id=org_id, track_index=True
-        )
+        _feature_cache.set("features", cache_key, result, org_id=org_id, track_index=True)
 
         return result
 
     @staticmethod
-    def invalidate_cache(
-        flag_key: Optional[str] = None, org_id: Optional[int] = None
-    ) -> int:
+    def invalidate_cache(flag_key: Optional[str] = None, org_id: Optional[int] = None) -> int:
         """
         Invalidate cache entries for a feature flag using versioned namespacing.
-        
+
         Args:
             flag_key: Specific flag to invalidate
             org_id: Specific org to invalidate
-        
+
         Returns:
             Number of entries invalidated
         """

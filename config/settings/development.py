@@ -8,6 +8,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 # Use SQLite for local development without Docker
 import environ as _environ  # noqa: E402
+
 _env = _environ.Env()
 if not _env("DATABASE_URL", default="").startswith("postgres"):
     DATABASES = {
@@ -22,4 +23,3 @@ REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"] = [  # noqa: F405
     "rest_framework.renderers.JSONRenderer",
     "rest_framework.renderers.BrowsableAPIRenderer",
 ]
-

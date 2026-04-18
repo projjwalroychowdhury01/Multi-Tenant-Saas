@@ -34,7 +34,7 @@ def _fire(action, instance, diff=None):
         resource_id = str(instance.pk) if instance.pk else ""
 
         write_audit_log.delay(
-            actor_id=None,          # signals don't have request context
+            actor_id=None,  # signals don't have request context
             org_id=_get_org_id(instance),
             action=action,
             resource_type=resource_type,
@@ -78,11 +78,15 @@ def on_user_delete(sender, instance, **kwargs):
 @receiver(post_save, sender="api_keys.ApiKey", dispatch_uid="audit_apikey_save")
 def on_apikey_save(sender, instance, created, **kwargs):
     action = "api_key.created" if created else "api_key.updated"
-    _fire(action, instance, diff={
-        "name": instance.name,
-        "prefix": instance.prefix,
-        "is_active": instance.is_active,
-    })
+    _fire(
+        action,
+        instance,
+        diff={
+            "name": instance.name,
+            "prefix": instance.prefix,
+            "is_active": instance.is_active,
+        },
+    )
 
 
 @receiver(post_delete, sender="api_keys.ApiKey", dispatch_uid="audit_apikey_delete")
@@ -100,10 +104,14 @@ def on_apikey_delete(sender, instance, **kwargs):
 )
 def on_membership_save(sender, instance, created, **kwargs):
     action = "membership.added" if created else "membership.updated"
-    _fire(action, instance, diff={
-        "user_id": str(instance.user_id),
-        "role": instance.role,
-    })
+    _fire(
+        action,
+        instance,
+        diff={
+            "user_id": str(instance.user_id),
+            "role": instance.role,
+        },
+    )
 
 
 @receiver(
@@ -112,7 +120,11 @@ def on_membership_save(sender, instance, created, **kwargs):
     dispatch_uid="audit_membership_delete",
 )
 def on_membership_delete(sender, instance, **kwargs):
-    _fire("membership.removed", instance, diff={
-        "user_id": str(instance.user_id),
-        "role": instance.role,
-    })
+    _fire(
+        "membership.removed",
+        instance,
+        diff={
+            "user_id": str(instance.user_id),
+            "role": instance.role,
+        },
+    )

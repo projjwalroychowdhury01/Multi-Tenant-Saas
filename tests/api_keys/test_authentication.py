@@ -29,6 +29,7 @@ def factory():
 def org_with_key(db):
     """Returns (org, user, api_key_instance, plaintext_secret)."""
     from tests.factories import OrganizationFactory, UserFactory
+
     org = OrganizationFactory()
     user = UserFactory()
     MembershipFactory(organization=org, user=user, role=RoleEnum.ADMIN)
@@ -37,6 +38,7 @@ def org_with_key(db):
 
 
 # ── Model-level helpers ───────────────────────────────────────────────────────
+
 
 class TestApiKeyModel:
     def test_generate_secret_live(self):
@@ -80,6 +82,7 @@ class TestApiKeyModel:
 
 # ── Authentication class ──────────────────────────────────────────────────────
 
+
 class TestApiKeyAuthenticationClass:
     """Unit tests calling ApiKeyAuthentication.authenticate() directly."""
 
@@ -116,6 +119,7 @@ class TestApiKeyAuthenticationClass:
         bad_secret = ApiKey.generate_secret("live")
         request = self._make_request(factory, token=bad_secret)
         from rest_framework.exceptions import AuthenticationFailed
+
         with pytest.raises(AuthenticationFailed):
             ApiKeyAuthentication().authenticate(request)
 
@@ -125,6 +129,7 @@ class TestApiKeyAuthenticationClass:
         key.save()
         request = self._make_request(factory, token=secret)
         from rest_framework.exceptions import AuthenticationFailed
+
         with pytest.raises(AuthenticationFailed):
             ApiKeyAuthentication().authenticate(request)
 
@@ -134,6 +139,7 @@ class TestApiKeyAuthenticationClass:
         key.save()
         request = self._make_request(factory, token=secret)
         from rest_framework.exceptions import AuthenticationFailed
+
         with pytest.raises(AuthenticationFailed):
             ApiKeyAuthentication().authenticate(request)
 
@@ -154,12 +160,14 @@ class TestApiKeyAuthenticationClass:
         django_req = factory.get("/", HTTP_AUTHORIZATION="Token sk_live_abc123")
         from rest_framework.request import Request
         from rest_framework.parsers import JSONParser
+
         request = Request(django_req, parsers=[JSONParser()])
         result = ApiKeyAuthentication().authenticate(request)
         assert result is None
 
 
 # ── Integration: requests authenticated via API key hit real endpoints ─────────
+
 
 class TestApiKeyEndpointAccess:
     """Verify that API-key Bearer auth works through the full request stack."""

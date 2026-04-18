@@ -29,7 +29,6 @@ class Migration(migrations.Migration):
                 help_text="Additional metadata (e.g., request headers, tags, labels)",
             ),
         ),
-        
         # Remove old indexes (they will be recreated with new field types)
         migrations.RemoveIndex(
             model_name="resourcesnapshot",
@@ -43,7 +42,6 @@ class Migration(migrations.Migration):
             model_name="resourcesnapshot",
             name="features_res_resource_version_idx",
         ),
-        
         # Convert ID fields to PolymorphicIDField
         migrations.AlterField(
             model_name="resourcesnapshot",
@@ -70,7 +68,6 @@ class Migration(migrations.Migration):
                 null=True,
             ),
         ),
-        
         # Add database indexes for new field types
         migrations.AddIndex(
             model_name="resourcesnapshot",
@@ -107,7 +104,6 @@ class Migration(migrations.Migration):
                 name="features_res_actor_created_idx",
             ),
         ),
-        
         # Add db_index to resource_type
         migrations.AlterField(
             model_name="resourcesnapshot",
@@ -118,7 +114,6 @@ class Migration(migrations.Migration):
                 max_length=100,
             ),
         ),
-        
         # Add db_index to version
         migrations.AlterField(
             model_name="resourcesnapshot",
@@ -128,7 +123,6 @@ class Migration(migrations.Migration):
                 help_text="Version number at the time of snapshot",
             ),
         ),
-        
         # Add db_index to request_id
         migrations.AlterField(
             model_name="resourcesnapshot",
@@ -140,7 +134,6 @@ class Migration(migrations.Migration):
                 max_length=100,
             ),
         ),
-        
         # Add db_index to created_at
         migrations.AlterField(
             model_name="resourcesnapshot",
@@ -150,7 +143,6 @@ class Migration(migrations.Migration):
                 db_index=True,
             ),
         ),
-        
         # Update Meta options
         migrations.AlterModelOptions(
             name="resourcesnapshot",

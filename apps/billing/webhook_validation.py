@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 class WebhookValidationError(ValueError):
     """Raised when webhook validation fails."""
+
     pass
 
 
@@ -80,12 +81,12 @@ WEBHOOK_SCHEMAS = {
 def validate_field_type(field_name: str, value: Any, expected_types) -> None:
     """
     Validate that a field has the correct type.
-    
+
     Args:
         field_name: Name of the field
         value: Field value
         expected_types: Type or tuple of types
-    
+
     Raises:
         WebhookValidationError if type mismatch
     """
@@ -96,22 +97,21 @@ def validate_field_type(field_name: str, value: Any, expected_types) -> None:
         else:
             expected_str = expected_types.__name__
         raise WebhookValidationError(
-            f"Field '{field_name}' has wrong type: expected {expected_str}, "
-            f"got {actual_type}"
+            f"Field '{field_name}' has wrong type: expected {expected_str}, " f"got {actual_type}"
         )
 
 
 def validate_webhook_event(event_type: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     """
     Validate webhook event against schema.
-    
+
     Args:
         event_type: Type of event (e.g., 'payment_succeeded')
         payload: Event payload to validate
-    
+
     Returns:
         Validated payload (cleaned)
-    
+
     Raises:
         WebhookValidationError if validation fails
     """
@@ -163,7 +163,7 @@ def queue_dead_letter_event(
 ) -> None:
     """
     Queue a malformed but signed event to dead-letter queue for manual review.
-    
+
     Args:
         payload: Event payload
         signature: HMAC signature
@@ -197,29 +197,29 @@ def queue_dead_letter_event(
 def get_dead_letter_events(limit: int = 100) -> list:
     """
     Retrieve recent dead-letter events for manual review.
-    
+
     Args:
         limit: Maximum number to return
-    
+
     Returns:
         List of WebhookEvent objects in dead-letter status
     """
     from apps.billing.models import WebhookEvent, WebhookEventStatus
 
     return list(
-        WebhookEvent.objects
-        .filter(status=WebhookEventStatus.DEAD_LETTER)
-        .order_by("-created_at")[:limit]
+        WebhookEvent.objects.filter(status=WebhookEventStatus.DEAD_LETTER).order_by("-created_at")[
+            :limit
+        ]
     )
 
 
 def retry_dead_letter_event(event_id: str) -> bool:
     """
     Attempt to reprocess a dead-letter event.
-    
+
     Args:
         event_id: UUID of WebhookEvent to retry
-    
+
     Returns:
         True if retry was successful, False otherwise
     """
@@ -240,6 +240,7 @@ def retry_dead_letter_event(event_id: str) -> bool:
 
         # Trigger reprocessing
         from apps.billing.tasks import process_webhook_event_async
+
         process_webhook_event_async.delay(str(event.id))
 
         logger.info(f"Dead-letter event {event_id} queued for retry (attempt {event.retry_count})")
@@ -257,12 +258,12 @@ def validate_webhook_payload_signature_and_schema(
 ) -> tuple:
     """
     Combined validation: signature + schema.
-    
+
     Args:
         payload: Event payload
         signature: HMAC signature
         verify_signature_func: Function to verify signature
-    
+
     Returns:
         Tuple of (is_valid, error_message, cleaned_payload)
     """

@@ -8,7 +8,13 @@ ChangeRoleSerializer           — validates role change requests
 
 from rest_framework import serializers
 
-from apps.tenants.models import Organization, OrganizationMembership, OrganizationInvitation, InvitationStatus, RoleEnum
+from apps.tenants.models import (
+    Organization,
+    OrganizationMembership,
+    OrganizationInvitation,
+    InvitationStatus,
+    RoleEnum,
+)
 from apps.rbac.registry import role_rank
 
 
@@ -134,7 +140,16 @@ class PublicInvitationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrganizationInvitation
-        fields = ["id", "email", "role", "status", "org_name", "org_slug", "invited_by_name", "created_at"]
+        fields = [
+            "id",
+            "email",
+            "role",
+            "status",
+            "org_name",
+            "org_slug",
+            "invited_by_name",
+            "created_at",
+        ]
         read_only_fields = fields
 
 
@@ -156,9 +171,7 @@ class CreateInvitationSerializer(serializers.Serializer):
 
     def validate_role(self, value):
         if value == RoleEnum.OWNER:
-            raise serializers.ValidationError(
-                "Users cannot be invited directly to the OWNER role."
-            )
+            raise serializers.ValidationError("Users cannot be invited directly to the OWNER role.")
         return value
 
     def validate(self, data):
@@ -199,4 +212,5 @@ class AcceptInvitationSerializer(serializers.Serializer):
     DRF-Spectacular will generate a 200 response schema from the view's
     explicit serializer annotation.
     """
+
     pass

@@ -64,14 +64,14 @@ def _resolve_org_or_404(request, org_id: str) -> Organization:
         org = Organization.all_objects.get(id=org_id, is_active=True)
     except (Organization.DoesNotExist, ValueError):
         from rest_framework.exceptions import NotFound
+
         raise NotFound()
 
     # Verify the caller belongs to this org
-    is_member = OrganizationMembership.objects.filter(
-        organization=org, user=request.user
-    ).exists()
+    is_member = OrganizationMembership.objects.filter(organization=org, user=request.user).exists()
     if not is_member:
         from rest_framework.exceptions import NotFound
+
         raise NotFound()
 
     return org
@@ -94,6 +94,7 @@ def list_members(request, org_id):
     # Permission check: need at least users:read
     role = _get_request_role(request)
     from apps.rbac.registry import has_permission
+
     if not has_permission(role, "users:read"):
         return Response(
             {
@@ -132,6 +133,7 @@ def change_member_role(request, org_id, uid):
 
     requester_role = _get_request_role(request)
     from apps.rbac.registry import has_permission
+
     if not has_permission(requester_role, "users:manage"):
         return Response(
             {
@@ -174,10 +176,7 @@ def change_member_role(request, org_id, uid):
         )
 
     # Guard: ADMIN cannot elevate someone above their own rank
-    if (
-        requester_role == RoleEnum.ADMIN
-        and role_rank(membership.role) >= role_rank(RoleEnum.ADMIN)
-    ):
+    if requester_role == RoleEnum.ADMIN and role_rank(membership.role) >= role_rank(RoleEnum.ADMIN):
         return Response(
             {
                 "error": "Admins cannot modify the role of another Admin or Owner.",
@@ -224,6 +223,7 @@ def remove_member(request, org_id, uid):
 
     requester_role = _get_request_role(request)
     from apps.rbac.registry import has_permission
+
     if not has_permission(requester_role, "users:manage"):
         return Response(
             {
@@ -306,7 +306,10 @@ def list_or_create_invitations(request, org_id):
     if request.method == "GET":
         if not has_permission(requester_role, "users:read"):
             return Response(
-                {"error": "You do not have permission to view invitations.", "code": "permission_denied"},
+                {
+                    "error": "You do not have permission to view invitations.",
+                    "code": "permission_denied",
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -378,7 +381,10 @@ def revoke_invitation(request, org_id, inv_id):
 
     if not has_permission(requester_role, "users:invite"):
         return Response(
-            {"error": "Only Admins and Owners can revoke invitations.", "code": "permission_denied"},
+            {
+                "error": "Only Admins and Owners can revoke invitations.",
+                "code": "permission_denied",
+            },
             status=status.HTTP_403_FORBIDDEN,
         )
 

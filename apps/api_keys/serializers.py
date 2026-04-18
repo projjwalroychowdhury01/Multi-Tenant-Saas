@@ -47,6 +47,7 @@ class ApiKeyCreateSerializer(serializers.ModelSerializer):
     def validate_scopes(self, value):
         """Reject unknown scope strings to prevent silent misconfiguration."""
         from apps.rbac.registry import _ALL_PERMISSIONS
+
         invalid = [s for s in value if s not in _ALL_PERMISSIONS]
         if invalid:
             raise serializers.ValidationError(
@@ -101,6 +102,7 @@ class ApiKeyUpdateSerializer(serializers.ModelSerializer):
 
     def validate_scopes(self, value):
         from apps.rbac.registry import _ALL_PERMISSIONS
+
         invalid = [s for s in value if s not in _ALL_PERMISSIONS]
         if invalid:
             raise serializers.ValidationError(f"Unknown permission scopes: {invalid}.")
