@@ -70,10 +70,16 @@ addopts = "-v --tb=short"
 [tool.ruff]
 exclude = [
     ".venv",
-    "venv",
     "__pycache__",
-    "migrations"
+    "migrations",
+    "node_modules"
 ]
+
+[flake8]
+exclude =
+    .venv,
+    __pycache__,
+    migrations
 
 
 
