@@ -33,6 +33,7 @@ djangorestframework-stubs = "^3.15"
 pytest = "^8.0"
 pytest-django = "^4.8"
 pytest-cov = "^5.0"
+ruff = "^0.15.11"
 
 [tool.black]
 line-length = 100
@@ -65,6 +66,16 @@ python_files = ["tests/test_*.py", "tests/**/test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+
+[tool.ruff]
+exclude = [
+    ".venv",
+    "venv",
+    "__pycache__",
+    "migrations"
+]
+
+
 
 [build-system]
 requires = ["poetry-core"]

@@ -5,10 +5,7 @@ Feature flag evaluation service with Redis caching and deterministic rollout.
 import hashlib
 from typing import Dict, Optional
 
-from django.core.cache import cache
-from django.db import IntegrityError
 
-from apps.tenants.context import get_current_org
 
 from .cache import CacheKeyBuilder, VersionedCacheNamespace
 from .models import FeatureFlag

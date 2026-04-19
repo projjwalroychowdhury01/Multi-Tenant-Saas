@@ -17,7 +17,6 @@ import json
 from django.conf import settings
 
 import pytest
-from rest_framework.test import APIClient
 
 from tests.factories import InvoiceFactory, OrganizationFactory, PlanFactory, SubscriptionFactory
 

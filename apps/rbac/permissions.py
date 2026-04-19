@@ -23,7 +23,6 @@ import logging
 from rest_framework import permissions
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.request import Request
-from rest_framework.views import APIView
 
 from apps.rbac.registry import get_role_permissions, is_at_least
 from apps.tenants.models import OrganizationMembership, RoleEnum

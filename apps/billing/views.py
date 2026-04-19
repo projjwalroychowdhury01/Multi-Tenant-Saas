@@ -8,7 +8,6 @@ GET  /billing/invoices       — invoices for current org (BILLING+)
 POST /billing/webhooks       — mock Stripe webhook handler (HMAC verified)
 """
 
-import json
 import logging
 
 from rest_framework import status
@@ -22,10 +21,9 @@ from apps.billing.serializers import (
     PlanSerializer,
     SubscribeSerializer,
     SubscriptionSerializer,
-    WebhookSerializer,
 )
 from apps.billing.services import get_billing_service, verify_webhook_signature
-from apps.rbac.permissions import CanManageBilling, CanReadBilling, IsOwner
+from apps.rbac.permissions import CanManageBilling, CanReadBilling
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +96,6 @@ def subscribe(request):
         Idempotency-Key: my-request-id-12345
         {"plan_id": "pro"}
     """
-    from apps.billing.idempotency import ensure_idempotency
 
     org = getattr(request, "org", None)
     if org is None:

@@ -1,6 +1,6 @@
 """Usage metering integration tests."""
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from django.utils import timezone
 
@@ -13,7 +13,6 @@ from tests.factories import (
     MembershipFactory,
     OrganizationFactory,
     PlanFactory,
-    SubscriptionFactory,
     UserFactory,
 )
 
@@ -29,7 +28,7 @@ class TestUsageSummary:
         # Create a subscription with a plan that has api_calls_per_month limit
         plan = PlanFactory(limits={"api_calls_per_month": 1000})
         now = timezone.now()
-        subscription = Subscription.objects.create(
+        Subscription.objects.create(
             organization=org,
             plan=plan,
             current_period_start=now - timedelta(days=15),
@@ -60,7 +59,7 @@ class TestUsageSummary:
         """Usage from multiple periods is summed correctly."""
         plan = PlanFactory(limits={"api_calls_per_month": 1000})
         now = timezone.now()
-        subscription = Subscription.objects.create(
+        Subscription.objects.create(
             organization=org,
             plan=plan,
             current_period_start=now - timedelta(days=20),
@@ -110,7 +109,7 @@ class TestUsageSummary:
         plan = PlanFactory(limits={"api_calls_per_month": 100})
         now = timezone.now()
         grace_end = now + timedelta(days=7)
-        subscription = Subscription.objects.create(
+        Subscription.objects.create(
             organization=org,
             plan=plan,
             current_period_start=now - timedelta(days=15),
@@ -187,7 +186,7 @@ class TestUsageSummary:
         # Create subscription and usage for org_a
         plan = PlanFactory(limits={"api_calls_per_month": 1000})
         now = timezone.now()
-        sub_a = Subscription.objects.create(
+        Subscription.objects.create(
             organization=org_a,
             plan=plan,
             current_period_start=now - timedelta(days=15),
@@ -202,7 +201,7 @@ class TestUsageSummary:
         )
 
         # Create subscription and usage for org_b
-        sub_b = Subscription.objects.create(
+        Subscription.objects.create(
             organization=org_b,
             plan=plan,
             current_period_start=now - timedelta(days=15),

@@ -13,11 +13,9 @@ import hmac
 import json
 import uuid
 from datetime import timedelta
-from unittest.mock import MagicMock, patch
 
 from django.conf import settings
-from django.core.cache import cache
-from django.test import RequestFactory, TestCase
+from django.test import TestCase
 from django.utils import timezone
 
 import pytest
@@ -28,28 +26,20 @@ from apps.billing.events import PlanLimitEventEmitter
 from apps.billing.idempotency import (
     IdempotencyManager,
     compute_request_hash,
-    get_cache_key,
-    get_idempotency_key,
 )
 from apps.billing.models import (
     IdempotencyKey,
-    Invoice,
-    InvoiceStatus,
     Plan,
-    PlanLimitEvent,
     PlanLimitEventType,
-    Subscription,
-    SubscriptionStatus,
     WebhookEvent,
     WebhookEventStatus,
 )
-from apps.billing.services import MockBillingService, verify_webhook_signature
+from apps.billing.services import MockBillingService
 from apps.billing.webhook_validation import (
     WebhookValidationError,
     queue_dead_letter_event,
     validate_webhook_event,
 )
-from apps.tenants.models import Organization
 from tests.factories import OrganizationFactory
 
 # ── Idempotency Tests ──────────────────────────────────────────────────────────
@@ -280,7 +270,7 @@ class TestWebhookReplayProtection(TestCase):
         service = MockBillingService()
 
         event_id = "evt_456"
-        result = service.handle_webhook(
+        _ = service.handle_webhook(
             event_type="payment_succeeded",
             payload={
                 "event_type": "payment_succeeded",

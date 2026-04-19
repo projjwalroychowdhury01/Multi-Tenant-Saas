@@ -42,6 +42,7 @@ class TestGetSubscription:
         sub = SubscriptionFactory(organization=org, plan=plan)
         user = UserFactory(password="TestPass123!")
         client = make_auth_client(api_client, user, org, RoleEnum.OWNER)
+        assert sub is not None
 
         response = client.get(self.URL)
         assert response.status_code == 200
@@ -97,6 +98,7 @@ class TestSubscribe:
         plan = PlanFactory(slug="subscribe-pro", name="Pro Subscribe")
         user = UserFactory(password="TestPass123!")
         client = make_auth_client(api_client, user, org, RoleEnum.OWNER)
+        assert plan.id is not None
 
         response = client.post(self.URL, {"plan_slug": "subscribe-pro"}, format="json")
         assert response.status_code == 200
@@ -136,6 +138,7 @@ class TestSubscribe:
         old_plan = PlanFactory(slug="old-sub-plan", name="Old Plan")
         new_plan = PlanFactory(slug="new-sub-plan", name="New Plan")
         SubscriptionFactory(organization=org, plan=old_plan)
+        assert new_plan.id is not None
 
         user = UserFactory(password="TestPass123!")
         client = make_auth_client(api_client, user, org, RoleEnum.OWNER)

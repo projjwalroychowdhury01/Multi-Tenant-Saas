@@ -115,14 +115,10 @@ class TestListInvoices:
         assert "plan_name" in inv
 
     def test_invoices_ordered_newest_first(self, api_client, db):
-        from datetime import timedelta
-
-        from django.utils import timezone
 
         org = OrganizationFactory()
         plan = PlanFactory(slug="inv-order-plan", name="Order Plan")
         sub = SubscriptionFactory(organization=org, plan=plan)
-        now = timezone.now()
         InvoiceFactory(subscription=sub, amount_cents=100)
         InvoiceFactory(subscription=sub, amount_cents=200)
 

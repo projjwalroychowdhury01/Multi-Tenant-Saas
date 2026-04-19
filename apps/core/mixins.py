@@ -7,7 +7,6 @@ Provides:
   - VersionedMixin     : monotonically incrementing version field per record
 """
 
-import uuid
 
 from django.db import models
 from django.utils import timezone

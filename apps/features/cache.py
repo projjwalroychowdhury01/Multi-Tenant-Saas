@@ -9,7 +9,7 @@ Supports:
 """
 
 import hashlib
-from typing import Any, Iterable, Optional, Union
+from typing import Any, Optional, Union
 
 from django.core.cache import cache
 

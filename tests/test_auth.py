@@ -17,7 +17,6 @@ from rest_framework import status
 
 from apps.tenants.models import OrganizationMembership, RoleEnum
 from apps.users.models import User
-from tests.factories import MembershipFactory, OrganizationFactory, UserFactory
 
 
 @pytest.mark.django_db

@@ -4,7 +4,6 @@ Middleware for enriching Sentry error scope with tenant and request context.
 
 import logging
 
-from apps.tenants.context import get_current_org
 from apps.users.models import User
 
 logger = logging.getLogger(__name__)

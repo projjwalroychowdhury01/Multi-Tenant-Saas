@@ -120,7 +120,6 @@ def _flush_usage_key(redis_client, key: str) -> None:
 
     Key format: ``usage:{org_id}:{metric}:{YYYY-MM-DD-HH}``
     """
-    import uuid
     from datetime import datetime
     from datetime import timezone as dt_tz
 
@@ -333,7 +332,7 @@ def process_webhook_event_async(self, event_id: str) -> None:
     try:
         from apps.billing.services import get_billing_service
 
-        result = get_billing_service().handle_webhook(
+        get_billing_service().handle_webhook(
             event_type=event.event_type,
             payload=event.payload,
             signature=event.signature,

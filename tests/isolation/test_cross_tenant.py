@@ -305,4 +305,4 @@ class TestCrossTenantIsolation:
         )
         assert (
             res.data[0]["amount_cents"] == 100
-        ), f"Invoice amount mismatch — cross-tenant invoice returned!"
+        ), "Invoice amount mismatch — cross-tenant invoice returned!"

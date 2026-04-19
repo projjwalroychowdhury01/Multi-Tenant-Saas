@@ -9,7 +9,6 @@ Normalises all API error responses to a consistent shape:
   }
 """
 
-from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
 

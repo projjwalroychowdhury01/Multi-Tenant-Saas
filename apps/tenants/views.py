@@ -30,8 +30,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.rbac.permissions import CanManageUsers, CanReadUsers, _get_request_role
-from apps.rbac.registry import has_permission, is_at_least, role_rank
+from apps.rbac.permissions import _get_request_role
+from apps.rbac.registry import has_permission, role_rank
 from apps.tenants.models import (
     InvitationStatus,
     Organization,
@@ -40,7 +40,6 @@ from apps.tenants.models import (
     RoleEnum,
 )
 from apps.tenants.serializers import (
-    AcceptInvitationSerializer,
     ChangeRoleSerializer,
     CreateInvitationSerializer,
     OrganizationInvitationSerializer,

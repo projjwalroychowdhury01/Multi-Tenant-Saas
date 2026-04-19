@@ -30,7 +30,6 @@ def factory():
 @pytest.fixture
 def org_with_key(db):
     """Returns (org, user, api_key_instance, plaintext_secret)."""
-    from tests.factories import OrganizationFactory, UserFactory
 
     org = OrganizationFactory()
     user = UserFactory()

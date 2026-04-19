@@ -14,7 +14,7 @@ Covers:
 """
 
 from datetime import timedelta
-from unittest.mock import call, patch
+from unittest.mock import patch
 
 from django.utils import timezone
 

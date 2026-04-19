@@ -272,7 +272,7 @@ class MockBillingService(BillingService):
 
     def _on_payment_failed(self, payload: dict):
         """Mark invoice as failed and set subscription to past_due."""
-        from apps.billing.models import Invoice, InvoiceStatus, Subscription, SubscriptionStatus
+        from apps.billing.models import Invoice, InvoiceStatus, SubscriptionStatus
 
         invoice_id = payload.get("invoice_id")
         if not invoice_id:

@@ -1,6 +1,5 @@
 """Health check view — GET /health."""
 
-import django
 from django.core.cache import cache
 from django.db import connection
 

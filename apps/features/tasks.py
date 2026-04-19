@@ -8,7 +8,7 @@ Handles:
 """
 
 import logging
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
 from django.apps import apps
 from django.core.serializers.json import DjangoJSONEncoder

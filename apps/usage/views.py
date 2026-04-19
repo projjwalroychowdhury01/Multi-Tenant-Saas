@@ -5,10 +5,9 @@ GET /usage/summary — current billing period's API call usage vs plan limit
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from django.db.models import Sum
-from django.utils import timezone
 
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes

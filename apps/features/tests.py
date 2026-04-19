@@ -1,17 +1,11 @@
-import hashlib
-import json
-from decimal import Decimal
 
 from django.core.cache import cache
-from django.test import Client
 
 import pytest
 from rest_framework import status
 
 from apps.billing.models import Plan
-from apps.tenants.models import Organization
-from apps.users.models import User
-from tests.factories import OrganizationFactory, UserFactory
+from tests.factories import OrganizationFactory
 
 from .models import FeatureFlag, ResourceSnapshot
 from .service import FeatureFlagService
@@ -96,6 +90,7 @@ class TestFeatureFlagService:
 
         # Different orgs may get different results
         result3 = FeatureFlagService.is_enabled(org_id=2, flag_key="rollout_flag")
+        assert isinstance(result3, bool)
         # Can't assert on this without predicting the hash, but we can verify no crash
 
     def test_get_all_features_for_org(self):
@@ -486,7 +481,7 @@ class TestSnapshotRestoreEndpoint:
         user = membership.user
         org = membership.organization
 
-        snapshot1 = ResourceSnapshot.objects.create(
+        ResourceSnapshot.objects.create(
             resource_type="User",
             resource_id=user.id,
             organization_id=org.id,

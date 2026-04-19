@@ -8,7 +8,6 @@ ChangeRoleSerializer           — validates role change requests
 
 from rest_framework import serializers
 
-from apps.rbac.registry import role_rank
 from apps.tenants.models import (
     InvitationStatus,
     Organization,
